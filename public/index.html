@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloom - Emotional Journal</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- MediaPipe Face Mesh -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="hero">
+        <h1>Bloom</h1>
+        <p>Journal your emotions and watch your garden grow</p>
+        <button id="debug-toggle" class="debug-button">Toggle Debug Mode</button>
+    </div>
+
+    <div class="container">
+        <div class="camera-container">
+            <!-- Initial alignment guide -->
+            <div class="alignment-guide">
+                <div class="alignment-text">Align your face here</div>
+            </div>
+            
+            <!-- Video feed from camera -->
+            <video id="video-input" playsinline></video>
+            
+            <!-- Canvas for AR overlay -->
+            <canvas id="ar-canvas"></canvas>
+            
+            <!-- Emotion indicator -->
+            <div class="emotion-indicator">
+                <div class="emotion-text">Detecting...</div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div id="debug-panel" class="debug-panel hidden">
+                <h3>Debug Panel</h3>
+                <div class="current-debug-state">
+                    <div>Current Emotion: <span id="debug-current-emotion">neutral</span></div>
+                    <div>Tentative Emotion: <span id="debug-tentative-emotion">neutral</span></div>
+                    <div>Stability Counter: <span id="debug-stability-counter">0</span>/7</div>
+                    <div>OpenAI Status: <span id="debug-openai-status">Ready</span></div>
+                    <div>OpenAI Confirmation: <span id="debug-openai-confirmation">0/2</span></div>
+                    <div>OpenAI Last Emotion: <span id="debug-openai-emotion">none</span></div>
+                </div>
+                <div class="debug-values">
+                    <div class="debug-row">
+                        <label>Eye Openness:</label>
+                        <span id="debug-eye-openness">0</span>
+                    </div>
+                    <div class="debug-row">
+                        <label>Mouth Width:</label>
+                        <span id="debug-mouth-width">0</span>
+                    </div>
+                    <div class="debug-row">
+                        <label>Mouth Openness:</label>
+                        <span id="debug-mouth-openness">0</span>
+                    </div>
+                    <div class="debug-row">
+                        <label>Smile Ratio:</label>
+                        <span id="debug-smile-ratio">0</span>
+                    </div>
+                    <div class="debug-row">
+                        <label>Eyebrow Ratio:</label>
+                        <span id="debug-eyebrow-ratio">0</span>
+                    </div>
+                </div>
+                <div class="debug-thresholds">
+                    <h4>Threshold Adjustments</h4>
+                    <div class="threshold-control">
+                        <label>Eye Openness (Sleepy):</label>
+                        <input type="range" id="threshold-eye" min="0.001" max="0.05" step="0.001" value="0.012">
+                        <span id="threshold-eye-value">0.012</span>
+                    </div>
+                    <div class="threshold-control">
+                        <label>Mouth Openness (Surprised):</label>
+                        <input type="range" id="threshold-mouth-open" min="0.01" max="0.2" step="0.01" value="0.13">
+                        <span id="threshold-mouth-open-value">0.13</span>
+                    </div>
+                    <div class="threshold-control">
+                        <label>Smile Ratio (Happy):</label>
+                        <input type="range" id="threshold-smile" min="-0.05" max="0" step="0.001" value="-0.018">
+                        <span id="threshold-smile-value">-0.018</span>
+                    </div>
+                    <div class="threshold-control">
+                        <label>Eyebrow Ratio (Angry):</label>
+                        <input type="range" id="threshold-eyebrow" min="-0.05" max="0" step="0.001" value="-0.03">
+                        <span id="threshold-eyebrow-value">-0.03</span>
+                    </div>
+                    <div class="threshold-control">
+                        <label>Sad Smile Ratio (Sad):</label>
+                        <input type="range" id="threshold-sad" min="0" max="0.05" step="0.001" value="0.01">
+                        <span id="threshold-sad-value">0.01</span>
+                    </div>
+                </div>
+                <div class="stability-control">
+                    <label>Emotion Stability Threshold:</label>
+                    <input type="range" id="threshold-stability" min="1" max="10" step="1" value="7">
+                    <span id="threshold-stability-value">7</span>
+                </div>
+                <div class="openai-controls">
+                    <h4>OpenAI Controls</h4>
+                    <div class="threshold-control">
+                        <label>OpenAI Confirmation Threshold:</label>
+                        <input type="range" id="threshold-openai-confirm" min="1" max="5" step="1" value="2">
+                        <span id="threshold-openai-confirm-value">2</span>
+                    </div>
+                    <div class="threshold-control">
+                        <label>OpenAI Call Interval (ms):</label>
+                        <input type="range" id="threshold-openai-interval" min="1000" max="5000" step="500" value="3000">
+                        <span id="threshold-openai-interval-value">3000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="streak-container">
+                <h3>Your Weekly Bloom</h3>
+                <div class="streak-flowers">
+                    <div class="flower-day" data-day="0">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Sun</div>
+                    </div>
+                    <div class="flower-day" data-day="1">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Mon</div>
+                    </div>
+                    <div class="flower-day" data-day="2">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Tue</div>
+                    </div>
+                    <div class="flower-day" data-day="3">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Wed</div>
+                    </div>
+                    <div class="flower-day" data-day="4">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Thu</div>
+                    </div>
+                    <div class="flower-day" data-day="5">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Fri</div>
+                    </div>
+                    <div class="flower-day" data-day="6">
+                        <div class="flower-icon unbloomed"></div>
+                        <div class="day-label">Sat</div>
+                    </div>
+                </div>
+                <div class="streak-info">
+                    <span id="current-streak">0</span> day streak
+                </div>
+            </div>
+            
+            <div class="journal-history">
+                <h3>Your Emotional Journey</h3>
+                <div id="journal-entries">
+                    <div class="no-entries">No journal entries yet. Start sharing your emotions to create your first entry.</div>
+                </div>
+                <button id="view-all-entries" class="journal-button">View All Entries</button>
+            </div>
+            
+            <div class="chat-container">
+                <h3>Bloom Assistant</h3>
+                <div id="assistant-messages"></div>
+                <div class="assistant-input-container">
+                    <input type="text" id="assistant-input" placeholder="Describe how you're feeling today...">
+                    <button id="assistant-send-button">Send</button>
+                </div>
+                <div class="assistant-status">
+                    <span id="assistant-typing" class="typing-indicator hidden">Bloom is thinking...</span>
+                    <button id="get-advice-button" class="advice-button">Create Journal Entry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="user-guidance">
+        <div id="guidance-text">Welcome to Bloom, your emotional journal!</div>
+    </div>
+    
+    <!-- Journal entry modal -->
+    <div id="journal-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Your Journal Entry</h2>
+            <div class="entry-date" id="entry-date"></div>
+            <div class="entry-emotions" id="entry-emotions"></div>
+            <div class="entry-content" id="entry-content"></div>
+            <button id="save-entry" class="journal-button">Save Entry</button>
+        </div>
+    </div>
+
+    <!-- All entries modal -->
+    <div id="all-entries-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-all-entries">&times;</span>
+            <h2>Your Journal</h2>
+            <div class="entries-container" id="all-entries-container"></div>
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html> 
