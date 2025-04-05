@@ -45,25 +45,47 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 2rem;
+    padding: 3rem;
     max-width: 800px;
     position: relative;
     z-index: 10; /* Ensure it's above other elements */
     background-color: rgba(0, 0, 0, 0.2); /* Add a slight background for visibility */
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transform: perspective(1000px) rotateX(0deg);
+    transition: transform 0.5s ease, box-shadow 0.5s ease;
+}
+
+.welcome-container:hover {
+    transform: perspective(1000px) rotateX(2deg);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
 }
 
 .logo-container {
     margin-bottom: 2rem;
+    position: relative;
+}
+
+.logo-container::after {
+    content: '';
+    position: absolute;
+    width: 120%;
+    height: 30px;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+    bottom: -20px;
+    left: -10%;
+    border-radius: 50%;
+    filter: blur(5px);
 }
 
 .bloom-logo {
     max-width: 400px;
     width: 100%;
     height: auto;
-    filter: drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.3));
-    animation: logoEnter 1.2s ease-out;
+    filter: drop-shadow(0px 10px 20px rgba(0, 0, 0, 0.4));
+    animation: logoEnter 1.2s ease-out, floating 6s ease-in-out infinite;
 }
 
 @keyframes logoEnter {
@@ -77,95 +99,91 @@ body {
     }
 }
 
+@keyframes floating {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
 .tagline {
     font-size: 1.6rem;
     margin-bottom: 3rem;
     opacity: 0;
     animation: fadeIn 1.2s ease-out forwards;
     animation-delay: 0.5s;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    letter-spacing: 1px;
+    font-weight: 300;
 }
 
 @keyframes fadeIn {
     0% {
         opacity: 0;
+        transform: translateY(20px);
     }
     100% {
         opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* Page transition overlay */
-.page-transition {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: var(--primary-dark);
-    z-index: 9999;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.6s ease-in-out;
-}
-
-.page-transition.active {
-    opacity: 1;
-    pointer-events: all;
-}
-
-/* Adjust the button to handle the transition */
 .discover-button {
     background-color: var(--text-light);
     color: var(--primary);
     font-size: 1.2rem;
     font-weight: 600;
     text-decoration: none;
-    padding: 1rem 2.5rem;
+    padding: 1.2rem 3rem;
     border-radius: 50px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     opacity: 0;
     animation: fadeIn 1.2s ease-out forwards;
     animation-delay: 0.8s;
     cursor: pointer;
     border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.discover-button::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(60deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.2), rgba(255,255,255,0) 80%);
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .discover-button:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    background-color: #f0f0f0;
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    background-color: #ffffff;
+    color: var(--primary-dark);
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .bloom-logo {
-        max-width: 300px;
-    }
-    
-    .tagline {
-        font-size: 1.3rem;
-    }
-    
-    .discover-button {
-        font-size: 1.1rem;
-        padding: 0.8rem 2rem;
-    }
+.discover-button:hover::after {
+    animation: shine 1.5s ease;
 }
 
-@media (max-width: 480px) {
-    .bloom-logo {
-        max-width: 250px;
+@keyframes shine {
+    0% {
+        opacity: 0;
+        left: -50%;
     }
-    
-    .tagline {
-        font-size: 1.1rem;
-        margin-bottom: 2rem;
+    50% {
+        opacity: 1;
     }
-    
-    .discover-button {
-        font-size: 1rem;
-        padding: 0.7rem 1.8rem;
+    100% {
+        opacity: 0;
+        left: 150%;
     }
 }
 
@@ -274,4 +292,55 @@ body {
         transform: translateY(-100vh) translateX(30px);
         opacity: 0;
     }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .bloom-logo {
+        max-width: 300px;
+    }
+    
+    .tagline {
+        font-size: 1.3rem;
+    }
+    
+    .discover-button {
+        font-size: 1.1rem;
+        padding: 0.8rem 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .bloom-logo {
+        max-width: 250px;
+    }
+    
+    .tagline {
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .discover-button {
+        font-size: 1rem;
+        padding: 0.7rem 1.8rem;
+    }
+}
+
+/* Page transition overlay */
+.page-transition {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--primary-dark);
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease-in-out;
+}
+
+.page-transition.active {
+    opacity: 1;
+    pointer-events: all;
 } 

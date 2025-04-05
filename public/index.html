@@ -200,8 +200,14 @@
         </div>
     </div>
 
-    <div class="user-guidance">
+    <!-- User Guidance -->
+    <div class="user-guidance" id="user-guidance">
         <div id="guidance-text">Welcome to <img src="assets/bloom-logo.png" alt="Bloom" class="bloom-logo-tiny">, your emotional journal!</div>
+        <div class="guidance-tips">
+            <div class="tip">😊 Express yourself naturally - your emotions will be detected automatically</div>
+            <div class="tip">📝 Journal your thoughts to track your emotional journey</div>
+            <div class="tip">🌱 Watch your garden grow as you maintain your journaling streak</div>
+        </div>
     </div>
     
     <!-- Journal entry modal -->
@@ -226,5 +232,12 @@
     </div>
     
     <script src="main.js"></script>
+    <script>
+        // Add click event to dismiss guidance popup
+        document.getElementById('user-guidance').addEventListener('click', function() {
+            this.style.opacity = '0';
+            this.style.pointerEvents = 'none';
+        });
+    </script>
 </body>
 </html> 

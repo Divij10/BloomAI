@@ -115,6 +115,8 @@ body.emotion-sleepy {
     transition: background var(--transition-time) cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    border-radius: 0 0 15px 15px;
 }
 
 .logo-container {
@@ -126,7 +128,12 @@ body.emotion-sleepy {
 .bloom-logo {
     max-width: 350px;
     height: auto;
-    filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.3));
+    transition: transform 0.3s ease;
+}
+
+.bloom-logo:hover {
+    transform: scale(1.02);
 }
 
 .bloom-logo-small {
@@ -173,8 +180,14 @@ body.emotion-sleepy {
     aspect-ratio: 4/3;
     background: #000;
     border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.camera-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
 }
 
 #video-input {
@@ -223,15 +236,20 @@ body.emotion-sleepy {
     position: absolute;
     bottom: 1rem;
     left: 1rem;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    z-index: 3;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(5px);
+    padding: 0.7rem 1.2rem;
     border-radius: 30px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    z-index: 3;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.emotion-indicator:hover {
+    transform: scale(1.1);
+    background: rgba(0, 0, 0, 0.7);
 }
 
 .emotion-text {
@@ -261,10 +279,23 @@ body.emotion-sleepy {
 /* Side panel */
 .side-panel {
     flex: 1;
-    min-width: 280px;
+    min-width: 300px;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.side-panel > div {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.side-panel > div:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
 }
 
 .streak-container, .journal-history, .chat-container {
@@ -449,21 +480,14 @@ body.emotion-sleepy {
 }
 
 .journal-entry {
-    padding: 0.75rem;
     border-left: 3px solid var(--primary);
-    background: var(--emotion-bg);
-    margin-bottom: 0.75rem;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    overflow: hidden;
-    border-left: 5px solid #ccc;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
 }
 
 .journal-entry:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    transform: translateX(5px);
 }
 
 .journal-entry.happy { border-left-color: #ffc107; }
@@ -518,26 +542,18 @@ body.emotion-sleepy {
 }
 
 .journal-button {
-    background: var(--primary);
+    background-color: var(--primary);
     color: white;
     border: none;
-    border-radius: 20px;
-    padding: 0.5rem 1rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 50px;
+    font-weight: 500;
     width: 100%;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 10px rgba(0, 161, 154, 0.3);
 }
 
 .journal-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    background-color: #56c596;
-}
-
-.journal-button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background-color: var(--primary-dark);
 }
 
 /* Chat container styles */
@@ -827,21 +843,103 @@ body.emotion-sleepy {
 /* User guidance */
 .user-guidance {
     position: fixed;
-    bottom: 2rem;
+    bottom: 20px;
     left: 50%;
-    transform: translateX(-50%) translateY(100px);
-    background: var(--primary);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 30px;
-    z-index: 100;
-    opacity: 0;
-    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 15px 25px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-width: 90%;
+    width: auto;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(0, 161, 154, 0.2);
+    transition: all 0.3s ease, opacity 0.6s ease;
+    animation: fadeInAndOut 8s forwards;
 }
 
-.user-guidance.show {
+@keyframes fadeInAndOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    80% { opacity: 1; transform: translateX(-50%); }
+    100% { opacity: 0; transform: translateX(-50%); pointer-events: none; }
+}
+
+.user-guidance:hover {
+    animation-play-state: paused;
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+}
+
+.guidance-tips {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.tip {
+    transition: transform 0.2s ease;
+    opacity: 0.8;
+}
+
+.tip:hover {
+    transform: translateX(5px);
+    opacity: 1;
+    color: var(--primary);
+}
+
+/* Ambient background elements */
+.ambient-elements-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.ambient-elements-container::before,
+.ambient-elements-container::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    opacity: 0.05;
+    filter: blur(80px);
+    animation: float 30s ease-in-out infinite alternate;
+}
+
+.ambient-elements-container::before {
+    top: 10%;
+    left: 15%;
+}
+
+.ambient-elements-container::after {
+    bottom: 10%;
+    right: 15%;
+    width: 250px;
+    height: 250px;
+    background: var(--primary);
+    animation-delay: 10s;
+}
+
+@keyframes float {
+    0% {
+        transform: translate(0, 0);
+    }
+    100% {
+        transform: translate(50px, 30px);
+    }
 }
 
 /* Reaction animations */
@@ -879,9 +977,11 @@ body.emotion-sleepy {
     color: white;
     border: none;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 0.8rem;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .debug-button:hover {
