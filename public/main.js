@@ -1044,6 +1044,127 @@ function setupEventListeners() {
         console.log("Journal creation button clicked");
         createJournalFromEmotions();
     });
+    
+    // Meditation Feature
+    const meditateButton = document.getElementById('meditate-button');
+    const meditationModal = document.getElementById('meditation-modal');
+    const closeButton = document.getElementById('close-meditation');
+    const startButton = document.getElementById('start-meditation');
+    const pauseButton = document.getElementById('pause-meditation');
+    const breathingCircle = document.querySelector('.breathing-circle');
+    const breathingInstruction = document.querySelector('.breathing-instruction');
+    const timerDisplay = document.querySelector('.timer');
+    
+    let meditationTimer;
+    let secondsLeft = 120; // 2 minutes
+    let isPaused = true;
+    let isBreathingIn = true;
+    let breathCounter = 0;
+    
+    // Format time as MM:SS
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+    
+    // Update breathing instruction
+    function updateBreathingInstruction() {
+        if (isBreathingIn) {
+            breathingInstruction.textContent = 'Breathe in...';
+            breathingInstruction.style.opacity = '1';
+        } else {
+            breathingInstruction.textContent = 'Breathe out...';
+            breathingInstruction.style.opacity = '1';
+        }
+        
+        // Toggle breathing direction
+        isBreathingIn = !isBreathingIn;
+        
+        // Count complete breath cycles
+        if (!isBreathingIn) {
+            breathCounter++;
+        }
+    }
+    
+    // Update timer display
+    function updateTimer() {
+        if (!isPaused) {
+            secondsLeft--;
+            timerDisplay.textContent = formatTime(secondsLeft);
+            
+            if (secondsLeft <= 0) {
+                clearInterval(meditationTimer);
+                endMeditation();
+                showGuidance('Great job! You completed a meditation session.', 'success');
+            }
+        }
+    }
+    
+    // Start meditation session
+    function startMeditation() {
+        isPaused = false;
+        breathingCircle.classList.remove('paused');
+        startButton.classList.add('hidden');
+        pauseButton.classList.remove('hidden');
+        
+        // Set up the interval for breathing instructions (every 4 seconds)
+        setInterval(updateBreathingInstruction, 4000);
+        
+        // Start the timer
+        meditationTimer = setInterval(updateTimer, 1000);
+        
+        // Initial instruction
+        updateBreathingInstruction();
+    }
+    
+    // Pause meditation session
+    function pauseMeditation() {
+        isPaused = true;
+        breathingCircle.classList.add('paused');
+        pauseButton.classList.add('hidden');
+        startButton.classList.remove('hidden');
+        startButton.textContent = 'Resume';
+    }
+    
+    // End meditation session
+    function endMeditation() {
+        clearInterval(meditationTimer);
+        meditationModal.classList.remove('show');
+        
+        // Reset for next time
+        setTimeout(() => {
+            isPaused = true;
+            secondsLeft = 120;
+            timerDisplay.textContent = formatTime(secondsLeft);
+            startButton.textContent = 'Start';
+            startButton.classList.remove('hidden');
+            pauseButton.classList.add('hidden');
+            breathingCircle.classList.add('paused');
+        }, 500);
+    }
+    
+    // Open meditation modal
+    meditateButton.addEventListener('click', () => {
+        meditationModal.classList.remove('hidden');
+        setTimeout(() => {
+            meditationModal.classList.add('show');
+        }, 10);
+    });
+    
+    // Close meditation modal
+    closeButton.addEventListener('click', () => {
+        meditationModal.classList.remove('show');
+        setTimeout(() => {
+            endMeditation();
+        }, 500);
+    });
+    
+    // Start/resume meditation
+    startButton.addEventListener('click', startMeditation);
+    
+    // Pause meditation
+    pauseButton.addEventListener('click', pauseMeditation);
 }
 
 // Set up Socket.IO event handlers

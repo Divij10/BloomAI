@@ -1392,11 +1392,19 @@ body.emotion-sleepy {
     to { transform: rotate(360deg); }
 }
 
-/* Simplified Theme Toggle Button */
+/* Top Navigation Bar */
+.top-nav {
+    position: fixed;
+    top: 0;
+    right: 0;
+    padding: 15px;
+    display: flex;
+    gap: 15px;
+    z-index: 9999;
+}
+
+/* Theme Toggle Button */
 .theme-toggle-button {
-    position: fixed !important;
-    top: 10px !important;
-    right: 10px !important;
     background-color: #fff;
     color: #333;
     border: 2px solid #56c596;
@@ -1405,25 +1413,24 @@ body.emotion-sleepy {
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    z-index: 9999 !important;
     transition: all 0.3s ease;
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.15);
-    margin: 0 !important;
-    transform: none !important;
-    max-width: 180px;
     outline: none;
     white-space: nowrap;
+    height: 40px;
+    display: flex;
+    align-items: center;
 }
 
 .theme-toggle-button:hover {
     background-color: #f0f0f0;
-    transform: translateY(-2px) !important;
+    transform: translateY(-2px);
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
     border-color: #00a19a;
 }
 
 .theme-toggle-button:active {
-    transform: translateY(0) !important;
+    transform: translateY(0);
 }
 
 body.dark-mode .theme-toggle-button {
@@ -1655,4 +1662,154 @@ body.dark-mode .theme-toggle-button .theme-label::before {
     color: #fff;
     position: absolute;
     left: 10px;
+}
+
+/* Meditation button */
+.meditate-button {
+    background: rgba(126, 195, 211, 0.9);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.meditate-button:hover {
+    background: rgba(126, 195, 211, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(126, 195, 211, 0.4);
+}
+
+/* Meditation Modal */
+.meditation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+}
+
+.meditation-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.meditation-modal.hidden {
+    display: none;
+}
+
+.meditation-content {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    border-radius: 20px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+    position: relative;
+    color: white;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+}
+
+.close-meditation {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+.breathing-circle {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7ec3d3, #6faebf);
+    margin: 30px auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 15px rgba(126, 195, 211, 0.5);
+    position: relative;
+    animation: breathe 8s infinite ease-in-out;
+}
+
+.breathing-circle.paused {
+    animation-play-state: paused;
+}
+
+.circle-text {
+    font-size: 1.5rem;
+    font-weight: 300;
+    margin-bottom: 0.5rem;
+}
+
+.timer {
+    font-size: 1.8rem;
+    font-weight: 500;
+}
+
+.breathing-instruction {
+    font-size: 1.2rem;
+    margin: 1rem 0;
+    height: 1.5rem;
+}
+
+.controls button {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.5rem;
+    border-radius: 50px;
+    margin: 0 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.controls button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.hidden {
+    display: none;
+}
+
+/* Breathing animation keyframes */
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(0.8);
+        box-shadow: 0 0 15px rgba(126, 195, 211, 0.5);
+    }
+    50% {
+        transform: scale(1.2);
+        box-shadow: 0 0 30px rgba(126, 195, 211, 0.8);
+    }
+}
+
+@keyframes fadeInOut {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
 } 

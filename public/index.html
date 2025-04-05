@@ -17,10 +17,13 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <!-- Theme Toggle (Moved to be first element) -->
-    <button class="theme-toggle-button" id="theme-toggle-button">
-        <span class="theme-label">Switch to Dark Mode</span>
-    </button>
+    <!-- Top Navigation Area -->
+    <div class="top-nav">
+        <button id="meditate-button" class="meditate-button">Meditate</button>
+        <button class="theme-toggle-button" id="theme-toggle-button">
+            <span class="theme-label">Switch to Dark Mode</span>
+        </button>
+    </div>
 
     <!-- Particles Container -->
     <div class="particles-container"></div>
@@ -175,14 +178,6 @@
                 </div>
             </div>
             
-            <div class="journal-history">
-                <h3>Your Emotional Journey</h3>
-                <div id="journal-entries">
-                    <div class="no-entries">No journal entries yet. Start sharing your emotions to create your first entry.</div>
-                </div>
-                <button id="view-all-entries" class="journal-button">View All Entries</button>
-            </div>
-            
             <div class="chat-container">
                 <h3>
                     <span>Bloom</span> Assistant
@@ -196,6 +191,14 @@
                     <span id="assistant-typing" class="typing-indicator hidden">Bloom is thinking...</span>
                     <button id="get-advice-button" class="advice-button">Start Journal Conversation</button>
                 </div>
+            </div>
+            
+            <div class="journal-history">
+                <h3>Your Emotional Journey</h3>
+                <div id="journal-entries">
+                    <div class="no-entries">No journal entries yet. Start sharing your emotions to create your first entry.</div>
+                </div>
+                <button id="view-all-entries" class="journal-button">View All Entries</button>
             </div>
         </div>
     </div>
@@ -231,6 +234,23 @@
         </div>
     </div>
     
+    <!-- Meditation Modal -->
+    <div id="meditation-modal" class="meditation-modal hidden">
+        <div class="meditation-content">
+            <button id="close-meditation" class="close-meditation">&times;</button>
+            <h2>Take a Mindful Moment</h2>
+            <div class="breathing-circle">
+                <div class="circle-text">Breathe</div>
+                <div class="timer">2:00</div>
+            </div>
+            <div class="breathing-instruction">Breathe in...</div>
+            <div class="controls">
+                <button id="start-meditation">Start</button>
+                <button id="pause-meditation" class="hidden">Pause</button>
+            </div>
+        </div>
+    </div>
+
     <script src="main.js"></script>
     <script>
         // Add click event to dismiss guidance popup
