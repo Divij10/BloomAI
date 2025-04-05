@@ -181,6 +181,9 @@
             <div class="chat-container">
                 <h3>
                     <span>Bloom</span> Assistant
+                    <button id="expand-chat" class="expand-chat-btn" title="Expand chat">
+                        <span class="expand-icon">⤢</span>
+                    </button>
                 </h3>
                 <div id="assistant-messages"></div>
                 <div class="assistant-input-container">
@@ -221,6 +224,23 @@
             <div class="entry-date" id="entry-date"></div>
             <div class="entry-emotions" id="entry-emotions"></div>
             <div class="entry-content" id="entry-content"></div>
+            
+            <!-- Emoji Reactions Section -->
+            <div class="emoji-reactions-container">
+                <h3>How do you feel about this memory now?</h3>
+                <div class="emoji-reactions" id="emoji-reactions">
+                    <button class="emoji-btn" data-emoji="😊" title="Happy">😊</button>
+                    <button class="emoji-btn" data-emoji="😢" title="Sad">😢</button>
+                    <button class="emoji-btn" data-emoji="😮" title="Surprised">😮</button>
+                    <button class="emoji-btn" data-emoji="😠" title="Angry">😠</button>
+                    <button class="emoji-btn" data-emoji="❤️" title="Love">❤️</button>
+                    <button class="emoji-btn" data-emoji="😌" title="Grateful">😌</button>
+                    <button class="emoji-btn" data-emoji="🤔" title="Thoughtful">🤔</button>
+                    <button class="emoji-btn" data-emoji="😂" title="Amused">😂</button>
+                </div>
+                <div class="current-reaction" id="current-reaction"></div>
+            </div>
+            
             <button id="save-entry" class="journal-button">Save Entry</button>
         </div>
     </div>
@@ -250,6 +270,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- Chat Overlay -->
+    <div id="chat-overlay" class="overlay"></div>
 
     <script src="main.js"></script>
     <script>

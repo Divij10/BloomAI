@@ -692,8 +692,8 @@ function getDominantEmotions() {
 
 // Update streak UI based on current streak data
 function updateStreakUI() {
-    // Update streak counter
-    document.getElementById('current-streak').textContent = streakData.currentStreak;
+    // Update streak counter to show the number of bloomed days instead of consecutive day streak
+    document.getElementById('current-streak').textContent = streakData.bloomedDays.length;
     
     // Get current day of week (0 = Sunday, 6 = Saturday)
     const today = new Date().getDay();
@@ -750,7 +750,8 @@ function createJournalEntry(content) {
         date: entryDate,
         emotions: dominantEmotions,
         content: content,
-        createdAt: now.toISOString()
+        createdAt: now.toISOString(),
+        reactions: [] // New field for emoji reactions
     };
     
     // Add to journal entries
@@ -856,6 +857,14 @@ function loadJournalData() {
         
         if (savedEntries) {
             journalEntries = JSON.parse(savedEntries);
+            
+            // Migrate old entries that don't have reactions field
+            journalEntries = journalEntries.map(entry => {
+                if (!entry.reactions) {
+                    entry.reactions = [];
+                }
+                return entry;
+            });
         }
         
         if (savedStreak) {
@@ -914,28 +923,43 @@ function createJournalEntryElement(entry) {
         ? entry.content.substring(0, 100) + '...' 
         : entry.content;
     
+    // Create reactions display (if any)
+    let reactionsHtml = '';
+    if (entry.reactions && entry.reactions.length > 0) {
+        // Get the most recent reaction
+        const latestReaction = entry.reactions[entry.reactions.length - 1];
+        reactionsHtml = `
+            <div class="entry-reactions">
+                <span class="emoji">${latestReaction.emoji}</span>
+                You felt ${latestReaction.emoji} about this memory 
+                ${formatTimeAgo(new Date(latestReaction.timestamp))}
+            </div>
+        `;
+    }
+    
     entryElement.innerHTML = `
         <div class="entry-header">
             <span class="entry-date">${formattedDate}</span>
         </div>
         <div class="entry-emotions">${emotionTags}</div>
         <div class="entry-preview">${previewText}</div>
+        ${reactionsHtml}
     `;
     
-    // Add click event to open the full entry
-    entryElement.addEventListener('click', () => {
-        showJournalEntry(entry);
-    });
+    // The click handler is now managed by the global document click listener
+    // using event delegation, so we no longer need to attach individual handlers
     
     return entryElement;
 }
 
 // Show a full journal entry in a modal
 function showJournalEntry(entry) {
+    console.log("Opening journal entry:", entry.id);
     const modal = document.getElementById('journal-modal');
     const dateElement = document.getElementById('entry-date');
     const emotionsElement = document.getElementById('entry-emotions');
     const contentElement = document.getElementById('entry-content');
+    const currentReactionElement = document.getElementById('current-reaction');
     
     // Format date
     const date = new Date(entry.date);
@@ -959,12 +983,135 @@ function showJournalEntry(entry) {
         `<p>${para}</p>`
     ).join('');
     
-    // Show modal
+    // Set up emoji reactions
+    setupEmojiReactions(entry);
+    
+    // Show modal properly with all required display properties
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    modal.classList.add('visible');
     modal.classList.add('show');
+    
+    console.log("Journal modal opened for entry:", entry.id);
+}
+
+// Set up emoji reactions for an entry
+function setupEmojiReactions(entry) {
+    const emojiButtons = document.querySelectorAll('.emoji-btn');
+    const currentReactionElement = document.getElementById('current-reaction');
+    
+    // Initialize entry.reactions if it doesn't exist
+    if (!entry.reactions) {
+        entry.reactions = [];
+    }
+    
+    // Reset all buttons
+    emojiButtons.forEach(button => {
+        button.classList.remove('selected');
+        
+        // Remove existing event listeners by cloning the button
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        // Add new event listener
+        newButton.addEventListener('click', function() {
+            handleEmojiReaction(entry, newButton.getAttribute('data-emoji'));
+        });
+    });
+    
+    // Display the latest reaction if available
+    if (entry.reactions && entry.reactions.length > 0) {
+        const latestReaction = entry.reactions[entry.reactions.length - 1];
+        
+        // Select the corresponding button
+        const matchingButton = document.querySelector(`.emoji-btn[data-emoji="${latestReaction.emoji}"]`);
+        if (matchingButton) {
+            matchingButton.classList.add('selected');
+        }
+        
+        // Display the reaction in the text area
+        const reactionTime = formatTimeAgo(new Date(latestReaction.timestamp));
+        currentReactionElement.innerHTML = `
+            <span class="emoji">${latestReaction.emoji}</span>
+            You felt this way about this memory ${reactionTime}
+        `;
+    } else {
+        currentReactionElement.textContent = 'Select an emoji to react to this memory';
+    }
+}
+
+// Handle emoji reaction from user
+function handleEmojiReaction(entry, emoji) {
+    const currentReactionElement = document.getElementById('current-reaction');
+    
+    // Create new reaction object
+    const reaction = {
+        emoji: emoji,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Add to the entry's reactions
+    if (!entry.reactions) {
+        entry.reactions = [];
+    }
+    entry.reactions.push(reaction);
+    
+    // Update UI to show selected emoji
+    const allEmojiButtons = document.querySelectorAll('.emoji-btn');
+    allEmojiButtons.forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.getAttribute('data-emoji') === emoji) {
+            btn.classList.add('selected');
+        }
+    });
+    
+    // Update reaction text
+    currentReactionElement.innerHTML = `
+        <span class="emoji">${emoji}</span>
+        You felt this way about this memory just now
+    `;
+    
+    // Find the entry in the journal entries array and update it
+    const entryIndex = journalEntries.findIndex(e => e.id === entry.id);
+    if (entryIndex !== -1) {
+        journalEntries[entryIndex] = entry;
+        
+        // Save to localStorage
+        saveJournalData();
+        
+        // Update journal display
+        updateJournalDisplay();
+        
+        // Show guidance message
+        showGuidance(`Reaction ${emoji} added to your memory!`, 'success');
+    }
+}
+
+// Helper function to format time ago
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffDay > 30) {
+        return date.toLocaleDateString();
+    } else if (diffDay > 0) {
+        return diffDay === 1 ? 'yesterday' : `${diffDay} days ago`;
+    } else if (diffHour > 0) {
+        return diffHour === 1 ? '1 hour ago' : `${diffHour} hours ago`;
+    } else if (diffMin > 0) {
+        return diffMin === 1 ? '1 minute ago' : `${diffMin} minutes ago`;
+    } else {
+        return 'just now';
+    }
 }
 
 // Show all journal entries
 function showAllEntries() {
+    console.log("Opening all entries modal");
     const modal = document.getElementById('all-entries-modal');
     const entriesContainer = document.getElementById('all-entries-container');
     
@@ -975,15 +1122,28 @@ function showAllEntries() {
             <div class="no-entries">No journal entries yet. Start sharing your emotions to create your first entry.</div>
         `;
     } else {
-        // Display all entries
+        // Add a helpful message about emoji reactions at the top
+        const helpText = document.createElement('div');
+        helpText.className = 'entries-help-text';
+        helpText.innerHTML = `
+            <p>Click on any entry to view details and add emoji reactions to track how you feel about past experiences.</p>
+        `;
+        entriesContainer.appendChild(helpText);
+        
+        // Display all entries with their latest reactions
         journalEntries.forEach(entry => {
             const entryElement = createJournalEntryElement(entry);
             entriesContainer.appendChild(entryElement);
         });
     }
     
-    // Show modal
+    // Show modal properly with all required display properties
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    modal.classList.add('visible');
     modal.classList.add('show');
+    
+    console.log("All entries modal opened, displaying", journalEntries.length, "entries");
 }
 
 // Set up event listeners
@@ -1012,16 +1172,87 @@ function setupEventListeners() {
         });
     }
     
-    // Journal entry buttons
-    document.querySelectorAll('.journal-entry').forEach(entry => {
-        entry.addEventListener('click', function() {
-            // Get the entry ID from the data attribute
-            const entryId = this.getAttribute('data-id');
-            const entry = journalEntries.find(e => e.id === entryId);
-            if (entry) {
-                showJournalEntry(entry);
+    // Expand/Collapse Chat functionality
+    const expandChatBtn = document.getElementById('expand-chat');
+    const chatContainer = document.querySelector('.chat-container');
+    const chatOverlay = document.getElementById('chat-overlay');
+    
+    if (expandChatBtn && chatContainer && chatOverlay) {
+        // Helper functions to expand and collapse chat
+        function expandChat() {
+            chatContainer.classList.add('expanded');
+            chatOverlay.classList.add('visible');
+            expandChatBtn.setAttribute('title', 'Collapse chat');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            
+            // Auto-focus the input field
+            setTimeout(() => {
+                document.getElementById('assistant-input').focus();
+            }, 300);
+        }
+        
+        function collapseChat() {
+            chatContainer.classList.remove('expanded');
+            chatOverlay.classList.remove('visible');
+            expandChatBtn.setAttribute('title', 'Expand chat');
+            document.body.style.overflow = '';
+        }
+        
+        expandChatBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent event bubbling
+            const isExpanded = chatContainer.classList.contains('expanded');
+            
+            if (isExpanded) {
+                collapseChat();
+            } else {
+                expandChat();
             }
         });
+        
+        // Close expanded chat when clicking outside
+        chatOverlay.addEventListener('click', () => {
+            collapseChat();
+        });
+        
+        // Add ESC key handler to close expanded chat
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && chatContainer.classList.contains('expanded')) {
+                collapseChat();
+            }
+        });
+    }
+    
+    // This event delegation approach handles clicks on journal entries dynamically
+    // It works even for entries that are added to the DOM after initial setup
+    document.addEventListener('click', function(event) {
+        let entryElement = event.target.closest('.journal-entry');
+        if (entryElement) {
+            console.log("Journal entry clicked:", entryElement);
+            const entryId = entryElement.getAttribute('data-id');
+            if (entryId) {
+                const entry = journalEntries.find(e => String(e.id) === String(entryId));
+                if (entry) {
+                    console.log("Found entry:", entry);
+                    
+                    // First hide the all-entries-modal if it's visible
+                    const allEntriesModal = document.getElementById('all-entries-modal');
+                    if (allEntriesModal && 
+                        (allEntriesModal.classList.contains('show') || 
+                         allEntriesModal.classList.contains('visible'))) {
+                        
+                        console.log("Hiding all-entries-modal before showing journal entry");
+                        allEntriesModal.classList.remove('visible');
+                        allEntriesModal.classList.remove('show');
+                        allEntriesModal.style.display = 'none';
+                    }
+                    
+                    // Then show the journal entry modal
+                    showJournalEntry(entry);
+                } else {
+                    console.error("Entry not found for ID:", entryId);
+                }
+            }
+        }
     });
 
     // View all entries button
