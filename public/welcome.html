@@ -11,10 +11,30 @@
         window.addEventListener('DOMContentLoaded', () => {
             console.log('Welcome page loaded successfully!');
             document.querySelector('.welcome-container').style.opacity = '1';
+            
+            // Handle the smooth transition
+            const discoverButton = document.getElementById('discover-button');
+            const transitionOverlay = document.getElementById('page-transition');
+            
+            discoverButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetUrl = this.getAttribute('href');
+                
+                // Activate the transition overlay
+                transitionOverlay.classList.add('active');
+                
+                // Navigate to the target page after transition
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 600); // Match this with the CSS transition duration
+            });
         });
     </script>
 </head>
 <body>
+    <!-- Page transition overlay -->
+    <div id="page-transition" class="page-transition"></div>
+    
     <!-- Floating particles -->
     <div class="particle"></div>
     <div class="particle"></div>
@@ -27,7 +47,7 @@
             <img src="assets/bloom-logo.png" alt="Bloom Logo" class="bloom-logo">
         </div>
         <p class="tagline">Journal your emotions and watch your garden grow</p>
-        <a href="/app" class="discover-button">Discover More</a>
+        <a href="/app" class="discover-button" id="discover-button">Discover More</a>
     </div>
 </body>
 </html> 
