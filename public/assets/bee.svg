@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <style>
+    .body {
+      fill: #ffd54f;
+      stroke: #f9a825;
+      stroke-width: 1;
+    }
+    .stripe {
+      fill: #212121;
+    }
+    .wing {
+      fill: #e1f5fe;
+      stroke: #b3e5fc;
+      stroke-width: 0.5;
+      opacity: 0.8;
+    }
+    .eye {
+      fill: #212121;
+    }
+    .stinger {
+      fill: none;
+      stroke: #f9a825;
+      stroke-width: 1;
+      stroke-linecap: round;
+    }
+  </style>
+  
+  <!-- Body -->
+  <ellipse class="body" cx="50" cy="50" rx="20" ry="15" />
+  
+  <!-- Stripes -->
+  <rect class="stripe" x="44" y="42" width="12" height="3" />
+  <rect class="stripe" x="42" y="48" width="16" height="3" />
+  <rect class="stripe" x="44" y="54" width="12" height="3" />
+  
+  <!-- Wings -->
+  <ellipse class="wing" cx="40" cy="40" rx="15" ry="10" transform="rotate(-30, 40, 40)" />
+  <ellipse class="wing" cx="60" cy="40" rx="15" ry="10" transform="rotate(30, 60, 40)" />
+  
+  <!-- Eyes -->
+  <circle class="eye" cx="40" cy="45" r="2" />
+  <circle class="eye" cx="60" cy="45" r="2" />
+  
+  <!-- Stinger -->
+  <path class="stinger" d="M50,65 L50,70" />
+  
+  <!-- Antennae -->
+  <path class="stinger" d="M45,40 C42,35 40,30 35,30" />
+  <path class="stinger" d="M55,40 C58,35 60,30 65,30" />
+</svg> 
