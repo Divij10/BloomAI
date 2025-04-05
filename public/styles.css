@@ -105,6 +105,32 @@ body.emotion-sleepy {
     transition: background var(--transition-time) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.logo-container {
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.bloom-logo {
+    max-width: 300px;
+    height: auto;
+    filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.bloom-logo-small {
+    height: 24px;
+    vertical-align: middle;
+    margin-right: 5px;
+    filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.1));
+}
+
+.bloom-logo-tiny {
+    height: 18px;
+    vertical-align: middle;
+    margin: 0 2px;
+    filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.2));
+}
+
 .hero h1 {
     font-size: 2.8rem;
     margin-bottom: 0.5rem;
@@ -242,6 +268,18 @@ body.emotion-sleepy {
     color: var(--primary-dark);
     border-bottom: 2px solid var(--primary-light);
     padding-bottom: 0.5rem;
+}
+
+.chat-container h3 {
+    color: #333;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.chat-container h3 span {
+    color: #5cff5c;
+    font-weight: 700;
 }
 
 /* Streak flowers */

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bloom - Emotional Journal</title>
+    <link rel="icon" href="assets/bloom-logo.png" type="image/png">
     <link rel="stylesheet" href="styles.css">
     <!-- MediaPipe Face Mesh -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -29,7 +30,9 @@
     <div class="ambient-elements-container"></div>
     
     <div class="hero">
-        <h1>Bloom</h1>
+        <div class="logo-container">
+            <img src="assets/bloom-logo.png" alt="Bloom Logo" class="bloom-logo">
+        </div>
         <p>Journal your emotions and watch your garden grow</p>
         <button id="debug-toggle" class="debug-button">Toggle Debug Mode</button>
     </div>
@@ -180,7 +183,9 @@
             </div>
             
             <div class="chat-container">
-                <h3>Bloom Assistant</h3>
+                <h3>
+                    <span>Bloom</span> Assistant
+                </h3>
                 <div id="assistant-messages"></div>
                 <div class="assistant-input-container">
                     <input type="text" id="assistant-input" placeholder="Describe how you're feeling today...">
@@ -195,7 +200,7 @@
     </div>
 
     <div class="user-guidance">
-        <div id="guidance-text">Welcome to Bloom, your emotional journal!</div>
+        <div id="guidance-text">Welcome to <img src="assets/bloom-logo.png" alt="Bloom" class="bloom-logo-tiny">, your emotional journal!</div>
     </div>
     
     <!-- Journal entry modal -->
