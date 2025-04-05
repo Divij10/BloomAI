@@ -687,20 +687,37 @@ function updateStreakUI() {
         const dayIndex = parseInt(dayElement.getAttribute('data-day'));
         const flowerIcon = dayElement.querySelector('.flower-icon');
         
-        // Check if this day is in bloomedDays
-        if (streakData.bloomedDays.includes(dayIndex)) {
-            flowerIcon.classList.remove('unbloomed');
-            flowerIcon.classList.add('bloomed');
-        } else {
-            flowerIcon.classList.remove('bloomed');
-            flowerIcon.classList.add('unbloomed');
-        }
-        
-        // Highlight current day
+        // Mark current day
         if (dayIndex === today) {
             dayElement.classList.add('current-day');
         } else {
             dayElement.classList.remove('current-day');
+        }
+        
+        // Check if this day is in bloomedDays
+        const isBloomedDay = streakData.bloomedDays.includes(dayIndex);
+        const hasBloomedClass = flowerIcon.classList.contains('bloomed');
+        
+        // If day should be bloomed but isn't yet, add animation
+        if (isBloomedDay && !hasBloomedClass) {
+            flowerIcon.classList.remove('unbloomed');
+            flowerIcon.classList.add('blooming');
+            
+            // After animation finishes, switch to bloomed state
+            setTimeout(() => {
+                flowerIcon.classList.remove('blooming');
+                flowerIcon.classList.add('bloomed');
+            }, 1500); // Match animation duration
+        } 
+        // If day should be bloomed and already has class, ensure it's correct
+        else if (isBloomedDay && hasBloomedClass) {
+            flowerIcon.classList.remove('unbloomed');
+            flowerIcon.classList.add('bloomed');
+        }
+        // If day shouldn't be bloomed, ensure it's unbloomed
+        else if (!isBloomedDay) {
+            flowerIcon.classList.remove('bloomed', 'blooming');
+            flowerIcon.classList.add('unbloomed');
         }
     });
 }
@@ -745,7 +762,26 @@ function updateStreak() {
         streakData.currentStreak = 1;
         streakData.lastEntryDate = currentDate;
         streakData.bloomedDays = [dayOfWeek];
+        
+        // Show a celebration message for first entry
+        showGuidance('Congratulations on your first journal entry! Your garden has started to bloom.', 'success');
     } else {
+        // Check if this day is already bloomed
+        if (streakData.bloomedDays.includes(dayOfWeek)) {
+            // Already bloomed this day of week, no need to change anything
+            console.log('This day is already bloomed');
+        } else {
+            // Add this day to bloomed days
+            streakData.bloomedDays.push(dayOfWeek);
+            
+            // Show celebration if this completes the week
+            if (streakData.bloomedDays.length === 7) {
+                showGuidance('Amazing! You\'ve completed entries for every day of the week! Your garden is in full bloom!', 'success');
+            } else {
+                showGuidance('Your garden is growing! New flower has bloomed.', 'success');
+            }
+        }
+        
         // Check if entry is on a new day
         if (currentDate !== streakData.lastEntryDate) {
             // Get date from last entry
@@ -756,26 +792,33 @@ function updateStreak() {
             // If it's consecutive (1 day difference)
             if (diffDays === 1) {
                 streakData.currentStreak++;
+                
+                // Celebration for streak milestones
+                if (streakData.currentStreak === 3) {
+                    showGuidance('3 day streak! You\'re building a great habit!', 'success');
+                } else if (streakData.currentStreak === 7) {
+                    showGuidance('A full week streak! Your emotional awareness is growing!', 'success');
+                } else if (streakData.currentStreak === 30) {
+                    showGuidance('Incredible! A 30 day streak! You\'re a master of emotional awareness!', 'success');
+                }
             } else {
-                // Streak broken
+                // Streak broken, but don't make user feel bad
+                if (streakData.currentStreak > 1) {
+                    showGuidance('Welcome back! Starting a new streak today.', 'info');
+                }
                 streakData.currentStreak = 1;
             }
             
+            // Update the last entry date
             streakData.lastEntryDate = currentDate;
-        }
-        
-        // Add today to bloomed days if not already there
-        if (!streakData.bloomedDays.includes(dayOfWeek)) {
-            streakData.bloomedDays.push(dayOfWeek);
         }
     }
     
-    // Limit bloomed days to current week
-    const lastWeekDate = new Date(today);
-    lastWeekDate.setDate(today.getDate() - 7);
-    
     // Update UI
     updateStreakUI();
+    
+    // Save streak data
+    saveJournalData();
 }
 
 // Save journal entries and streak data to local storage
@@ -1759,6 +1802,10 @@ function saveEditedJournalEntry(originalEntry, editedContent) {
         journalEntries.push(editedEntry);
         // Update streak data
         updateStreak();
+        
+        // Animate today's flower if it just bloomed
+        const today = new Date().getDay();
+        animateFlowerBloom(today);
     }
     
     // Sort entries by date (newest first)
@@ -1783,6 +1830,44 @@ function saveEditedJournalEntry(originalEntry, editedContent) {
         emotion: currentEmotion,
         timestamp: new Date().toISOString()
     });
+}
+
+// Animate a specific day's flower blooming with a special effect
+function animateFlowerBloom(dayIndex) {
+    const dayElement = document.querySelector(`.flower-day[data-day="${dayIndex}"]`);
+    if (!dayElement) return;
+    
+    const flowerIcon = dayElement.querySelector('.flower-icon');
+    if (!flowerIcon) return;
+    
+    // Add highlight effect to the day element
+    dayElement.classList.add('bloom-highlight');
+    
+    // First remove any existing classes
+    flowerIcon.classList.remove('unbloomed', 'bloomed', 'blooming');
+    
+    // Add blooming animation
+    flowerIcon.classList.add('blooming');
+    
+    // Play a gentle sound effect if available
+    try {
+        const bloomSound = new Audio('assets/bloom-sound.mp3');
+        bloomSound.volume = 0.5;
+        bloomSound.play().catch(err => console.log('Sound could not play: ', err));
+    } catch (e) {
+        console.log('Sound not available');
+    }
+    
+    // After animation completes, switch to bloomed state
+    setTimeout(() => {
+        flowerIcon.classList.remove('blooming');
+        flowerIcon.classList.add('bloomed');
+        
+        // Remove highlight effect
+        setTimeout(() => {
+            dayElement.classList.remove('bloom-highlight');
+        }, 500);
+    }, 1500);
 }
 
 // Update journal display with recent entries
