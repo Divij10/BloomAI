@@ -25,31 +25,64 @@ app.post('/api/emotions', (req, res) => {
 
 // API endpoint for OpenAI emotion analysis
 app.post('/api/analyze-emotion', async (req, res) => {
+  console.log('Received emotion analysis request');
+  
   try {
-    const { imageData, faceData } = req.body;
-    
-    if (!imageData) {
-      return res.status(400).json({ error: 'Image data is required' });
+    // Check if image data is provided
+    if (!req.body.imageData) {
+      console.error('No image data provided');
+      return res.status(400).json({ error: { message: 'Missing image data' } });
     }
     
-    // Call OpenAI Vision API for more accurate emotion detection
+    console.log('Image data received, processing for OpenAI...');
+    
+    // Remove the data:image/jpeg;base64, prefix
+    const base64Image = req.body.imageData.replace(/^data:image\/\w+;base64,/, '');
+    
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(base64Image, 'base64');
+    
+    // Log the size of the image data for debugging
+    console.log(`Image buffer size: ${imageBuffer.length} bytes`);
+    
+    // Create a FormData object with the image
+    const formData = new FormData();
+    const blob = new Blob([imageBuffer], { type: 'image/jpeg' });
+    formData.append('image', blob, 'image.jpg');
+    
+    // Prepare the messages for the API
+    const messages = [
+      {
+        role: "system",
+        content: "You are an emotion detection assistant. Analyze the provided facial image and determine the person's emotional state. Choose ONLY ONE of the following emotions that best matches the face: happy, sad, angry, surprised, neutral, sleepy, fearful, disgusted. Response with ONLY the emotion name, nothing else."
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "What emotion is shown in this face image?"
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`
+            }
+          }
+        ]
+      }
+    ];
+    
+    console.log('Calling OpenAI API...');
+    
+    // Call OpenAI API
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert facial emotion analyzer. Analyze the face in the image and identify the primary emotion. Respond with EXACTLY ONE of these specific emotion categories and nothing else: happy, sad, angry, surprised, neutral, sleepy, fearful, disgusted. Do not include any explanation, just output the single emotion word."
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "What is the primary emotion expressed in this face? Respond with just one word from the allowed categories." },
-            { type: "image_url", image_url: { url: imageData } }
-          ]
-        }
-      ],
+      messages,
       max_tokens: 20
     });
+    
+    console.log('OpenAI API response received');
     
     // Extract and validate the emotion from OpenAI's response
     const responseText = response.choices[0].message.content.toLowerCase().trim();
@@ -60,7 +93,7 @@ app.post('/api/analyze-emotion', async (req, res) => {
                     validEmotions.find(e => responseText.includes(e)) || 'neutral';
     
     // Additional facial data from browser can be used for hybrid approach
-    console.log('OpenAI detected emotion:', emotion);
+    console.log('OpenAI detected emotion:', emotion, 'Full response:', responseText);
     
     return res.json({ 
       emotion,
@@ -69,6 +102,10 @@ app.post('/api/analyze-emotion', async (req, res) => {
     });
   } catch (error) {
     console.error('Error with OpenAI API:', error);
+    console.error('Error details:', error.message);
+    if (error.response) {
+      console.error('OpenAI API error response:', error.response.data);
+    }
     
     // Provide more detailed error information
     let errorDetails = {
@@ -81,6 +118,7 @@ app.post('/api/analyze-emotion', async (req, res) => {
     let fallbackEmotion = 'neutral';
     
     if (req.body.faceData && req.body.faceData.metrics) {
+      console.log('Using fallback emotion detection with facial metrics');
       // Get metrics from facial data
       const metrics = req.body.faceData.metrics;
       
@@ -105,6 +143,8 @@ app.post('/api/analyze-emotion', async (req, res) => {
         // Default is neutral
         fallbackEmotion = 'neutral';
       }
+      
+      console.log('Fallback emotion:', fallbackEmotion);
     }
     
     // Fallback response so the app continues to work

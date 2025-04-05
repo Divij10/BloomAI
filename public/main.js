@@ -38,6 +38,13 @@ let streakData = {
     bloomedDays: []
 };
 
+// Add conversation state tracking for journal
+let inJournalingMode = false;
+let journalQuestions = [];
+let journalAnswers = {};
+let currentQuestionIndex = 0;
+let journalEntryInProgress = null;
+
 // Emotion threshold variables - fine-tuned for better accuracy
 let thresholds = {
     eyeOpenness: 0.012,     // Below this is considered sleepy
@@ -115,9 +122,15 @@ const socket = io();
 
 // Initialize the application
 function init() {
+    console.log('Initializing BloomAI application...');
+    
     // Setup camera and face mesh
     setupCamera();
     setupFaceMesh();
+    
+    // Setup capture canvas for OpenAI
+    setupCaptureCanvas();
+    console.log('Capture canvas setup complete');
     
     // Setup event listeners
     setupEventListeners();
@@ -127,9 +140,11 @@ function init() {
     
     // Setup debug controls
     setupDebugControls();
-
-    // Setup capture canvas for OpenAI
-    setupCaptureCanvas();
+    
+    // Ensure OpenAI is enabled by default
+    openAIEnabled = true;
+    openAIErrorCount = 0;
+    console.log('OpenAI emotion detection enabled:', openAIEnabled);
     
     // Set up chat container 
     if (assistantMessagesElement) {
@@ -140,6 +155,8 @@ function init() {
     // Add OpenAI status indicator to the UI
     const container = document.querySelector('.emotion-indicator');
     container.appendChild(openaiStatusElement);
+    openaiStatusElement.textContent = 'OpenAI: Ready';
+    openaiStatusElement.style.color = '#4caf50';
     
     // Load journal entries and streak data from local storage
     loadJournalData();
@@ -179,6 +196,8 @@ function init() {
     
     // Resize canvas to match video dimensions
     window.addEventListener('resize', resizeCanvas);
+    
+    console.log('Initialization complete');
 }
 
 // Setup WebRTC camera
@@ -249,6 +268,9 @@ function onFaceMeshResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
+    // Add debug logging to track function calls
+    console.log('onFaceMeshResults called with results:', !!results);
+    
     // If no face is detected, show guidance
     if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
         emotionText.textContent = 'No face detected';
@@ -258,11 +280,14 @@ function onFaceMeshResults(results) {
         return;
     }
     
+    console.log('Face detected, landmarks count:', results.multiFaceLandmarks[0].length);
+    
     // Get facial landmarks
     const landmarks = results.multiFaceLandmarks[0];
     
     // Calculate facial metrics for debug panel
     const metrics = calculateFacialMetrics(landmarks);
+    console.log('Facial metrics calculated:', metrics);
     
     // Update debug panel if in debug mode
     if (debugMode) {
@@ -274,6 +299,10 @@ function onFaceMeshResults(results) {
     
     // Detect emotion based on facial features using local model
     const localEmotion = detectEmotion(landmarks, metrics);
+    console.log('Local emotion detected:', localEmotion, 'Current emotion:', currentEmotion);
+    
+    // Always update text display with the current detected emotion
+    emotionText.textContent = capitalize(currentEmotion);
     
     // If OpenAI integration is enabled and it's time to make a new API call
     const currentTime = Date.now();
@@ -282,6 +311,7 @@ function onFaceMeshResults(results) {
         currentTime - openAILastCallTime > OPENAI_CALL_INTERVAL &&
         currentTime - lastProcessedFrame > FRAME_PROCESS_INTERVAL) {
         
+        console.log('Conditions met to capture frame for OpenAI');
         lastProcessedFrame = currentTime;
         captureFrameForOpenAI(results);
     }
@@ -307,6 +337,11 @@ async function captureFrameForOpenAI(results) {
         return;
     }
     
+    // Add debug logs to help identify issues
+    console.log('Capturing frame for OpenAI emotion analysis...');
+    console.log('captureCanvas exists:', !!captureCanvas);
+    console.log('captureContext exists:', !!captureContext);
+    
     try {
         // Set flag to avoid multiple simultaneous requests
         processingOpenAIRequest = true;
@@ -320,14 +355,19 @@ async function captureFrameForOpenAI(results) {
             0, 0, captureCanvas.width, captureCanvas.height
         );
         
+        console.log('Frame captured and drawn to canvas');
+        
         // Convert canvas to base64 data URL
         const imageData = captureCanvas.toDataURL('image/jpeg', 0.7);
+        console.log('Image data URL created, length:', imageData.length);
         
         // Prepare facial data for hybrid approach
         const faceData = {
             landmarks: results.multiFaceLandmarks[0],
             metrics: calculateFacialMetrics(results.multiFaceLandmarks[0])
         };
+        
+        console.log('Sending API request to /api/analyze-emotion');
         
         // Make API request to our server endpoint
         const response = await fetch('/api/analyze-emotion', {
@@ -341,6 +381,8 @@ async function captureFrameForOpenAI(results) {
             })
         });
         
+        console.log('API response received:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
             openAILastCallTime = Date.now();
@@ -349,6 +391,7 @@ async function captureFrameForOpenAI(results) {
             
             // Check if this was a fallback response from server due to OpenAI error
             if (data.fallback) {
+                console.log('Received fallback response, error:', data.error);
                 openAIErrorCount++;
                 
                 // Show error code if available
@@ -445,7 +488,8 @@ async function captureFrameForOpenAI(results) {
             }
         } else {
             // Handle HTTP error responses
-            console.error('Error from server:', await response.text());
+            const errorText = await response.text();
+            console.error('Error from server:', errorText);
             openaiStatusElement.textContent = 'OpenAI: Error';
             openaiStatusElement.style.color = '#f44336';
             
@@ -475,6 +519,7 @@ async function captureFrameForOpenAI(results) {
         }
     } catch (error) {
         console.error('Error capturing frame for OpenAI:', error);
+        console.error('Error details:', error.stack);
         openaiStatusElement.textContent = 'OpenAI: Error';
         openaiStatusElement.style.color = '#f44336';
         
@@ -962,6 +1007,21 @@ async function sendAssistantMessage() {
         timestamp: new Date().toISOString()
     });
     
+    // Check if we're in journaling mode and process accordingly
+    if (inJournalingMode) {
+        // First check if this is a response to journal preview
+        if (journalEntryInProgress && processJournalPreviewResponse(message)) {
+            return;
+        }
+        
+        // Otherwise, process as an answer to a journal question
+        if (processJournalAnswer(message)) {
+            return;
+        }
+    }
+    
+    // If not in journaling mode or not a valid journal command, process as a regular message
+    
     // Track message for later context
     assistantMessages.push({
         role: 'user',
@@ -1041,14 +1101,18 @@ async function sendAssistantMessage() {
 // Create a journal entry from today's emotions
 async function createJournalFromEmotions() {
     // Don't request if already processing
-    if (assistantProcessing) {
+    if (assistantProcessing || inJournalingMode) {
         return;
     }
+    
+    // Enter journaling mode
+    inJournalingMode = true;
     
     // Show typing indicator
     assistantProcessing = true;
     assistantTyping.classList.remove('hidden');
     getAdviceButton.disabled = true;
+    getAdviceButton.textContent = "Journaling in progress...";
     
     try {
         // Get recent emotion history for context
@@ -1073,23 +1137,516 @@ async function createJournalFromEmotions() {
         }
         
         const questionsData = await questionsResponse.json();
-        const questions = questionsData.questions;
+        journalQuestions = questionsData.questions;
+        journalAnswers = {};
+        currentQuestionIndex = 0;
         
-        // Show journal questions interface
-        showJournalQuestions(questions);
+        // Add an introduction message from the assistant
+        addAssistantMessage({
+            sender: 'ai',
+            message: "I'd like to help you create a journal entry about your emotional journey today. I'll ask you a few questions, and your answers will help me craft a personalized entry. You can type 'skip' to skip a question or 'done' when you're ready to finish.",
+            emotion: currentEmotion,
+            timestamp: new Date().toISOString(),
+            isJournalPrompt: true
+        });
+        
+        // Wait a moment before asking the first question
+        setTimeout(() => {
+            // Ask the first question
+            askNextJournalQuestion();
+        }, 1000);
         
     } catch (error) {
         console.error('Error creating journal questions:', error);
-        showGuidance('Sorry, I had trouble creating your journal questions. Falling back to default entry.', 'error');
+        showGuidance('Sorry, I had trouble creating your journal questions. Let\'s try a different approach.', 'error');
         
-        // Fallback to traditional journal entry if questions fail
+        // Fallback to traditional journal entry
+        inJournalingMode = false;
         createTraditionalJournalEntry();
     } finally {
-        // Hide typing indicator and re-enable button
+        // Hide typing indicator
         assistantProcessing = false;
         assistantTyping.classList.add('hidden');
-        getAdviceButton.disabled = false;
     }
+}
+
+// Ask the next journal question in the chat
+function askNextJournalQuestion() {
+    if (currentQuestionIndex < journalQuestions.length) {
+        // Get the current question
+        const question = journalQuestions[currentQuestionIndex];
+        
+        // Add the question as an assistant message
+        addAssistantMessage({
+            sender: 'ai',
+            message: question,
+            emotion: currentEmotion,
+            timestamp: new Date().toISOString(),
+            isJournalPrompt: true
+        });
+        
+        // Focus the input field
+        assistantInput.focus();
+    } else {
+        // All questions have been asked
+        finishJournalQuestioning();
+    }
+}
+
+// Process a user's answer to a journal question
+function processJournalAnswer(answer) {
+    // If the user wants to skip this question
+    if (answer.toLowerCase() === 'skip') {
+        // Move to the next question without recording an answer
+        currentQuestionIndex++;
+        askNextJournalQuestion();
+        return true;
+    }
+    
+    // If the user wants to finish early
+    if (answer.toLowerCase() === 'done') {
+        finishJournalQuestioning();
+        return true;
+    }
+    
+    // Store the answer
+    if (currentQuestionIndex < journalQuestions.length) {
+        journalAnswers[journalQuestions[currentQuestionIndex]] = answer;
+        
+        // Move to the next question
+        currentQuestionIndex++;
+        askNextJournalQuestion();
+        return true;
+    }
+    
+    return false;
+}
+
+// Finish the journal questioning process and create the entry
+async function finishJournalQuestioning() {
+    // Check if we have any answers
+    if (Object.keys(journalAnswers).length === 0) {
+        // No answers provided
+        addAssistantMessage({
+            sender: 'ai',
+            message: "It seems like you didn't provide any answers to the questions. Would you like to try again later?",
+            emotion: currentEmotion,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Exit journaling mode
+        inJournalingMode = false;
+        getAdviceButton.disabled = false;
+        getAdviceButton.textContent = "Create Journal Entry";
+        return;
+    }
+    
+    // Show typing indicator
+    assistantProcessing = true;
+    assistantTyping.classList.remove('hidden');
+    
+    addAssistantMessage({
+        sender: 'ai',
+        message: "Thank you for sharing your thoughts! I'm creating your personalized journal entry now...",
+        emotion: currentEmotion,
+        timestamp: new Date().toISOString()
+    });
+    
+    try {
+        // Get recent emotion history for context
+        const recentHistory = emotionHistory.slice(-10);
+        const dominantEmotions = getDominantEmotions();
+        
+        // Call API for creating a journal entry with answers
+        const response = await fetch('/api/guidance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                currentEmotion: currentEmotion,
+                emotionHistory: recentHistory,
+                dominantEmotions: dominantEmotions,
+                isJournalEntry: true,
+                userAnswers: journalAnswers
+            })
+        });
+        
+        // Handle response
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Create journal entry
+            const entry = createJournalEntry(data.guidance);
+            journalEntryInProgress = entry;
+            
+            // Show preview in the chat
+            addAssistantMessage({
+                sender: 'ai',
+                message: "I've created a journal entry based on our conversation. Here's a preview:\n\n" + 
+                         entry.content.substring(0, 200) + "...\n\n" +
+                         "Would you like to edit it before saving? Respond with 'edit' to modify or 'save' to keep it as is.",
+                emotion: currentEmotion,
+                timestamp: new Date().toISOString(),
+                isJournalPreview: true
+            });
+            
+        } else {
+            console.error('Error creating journal entry:', await response.text());
+            addAssistantMessage({
+                sender: 'ai',
+                message: "I'm sorry, I had trouble creating your journal entry. Would you like to try again?",
+                emotion: currentEmotion,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Exit journaling mode
+            inJournalingMode = false;
+            getAdviceButton.disabled = false;
+            getAdviceButton.textContent = "Create Journal Entry";
+        }
+    } catch (error) {
+        console.error('Error creating journal entry:', error);
+        addAssistantMessage({
+            sender: 'ai',
+            message: "I encountered an error while creating your journal entry. Let's try again later.",
+            emotion: currentEmotion,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Exit journaling mode
+        inJournalingMode = false;
+        getAdviceButton.disabled = false;
+        getAdviceButton.textContent = "Create Journal Entry";
+    } finally {
+        // Hide typing indicator
+        assistantProcessing = false;
+        assistantTyping.classList.add('hidden');
+    }
+}
+
+// Process journal preview responses
+function processJournalPreviewResponse(message) {
+    if (!journalEntryInProgress) {
+        return false;
+    }
+    
+    const response = message.toLowerCase().trim();
+    
+    if (response === 'save') {
+        // Save the journal entry as is
+        journalEntries.push(journalEntryInProgress);
+        
+        // Update streak data
+        updateStreak();
+        
+        // Save to localStorage
+        saveJournalData();
+        
+        // Update UI
+        updateJournalDisplay();
+        
+        // Confirmation message
+        addAssistantMessage({
+            sender: 'ai',
+            message: "Your journal entry has been saved! You can view it in your journal history. Your garden is growing with each entry you make.",
+            emotion: currentEmotion,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Reset journaling mode
+        inJournalingMode = false;
+        journalEntryInProgress = null;
+        getAdviceButton.disabled = false;
+        getAdviceButton.textContent = "Create Journal Entry";
+        
+        return true;
+    } else if (response === 'edit') {
+        // Show the journal entry in editable mode
+        showEditableJournalEntry(journalEntryInProgress);
+        
+        // Reset journaling mode after showing editor
+        inJournalingMode = false;
+        journalEntryInProgress = null;
+        getAdviceButton.disabled = false;
+        getAdviceButton.textContent = "Create Journal Entry";
+        
+        return true;
+    }
+    
+    return false;
+}
+
+// Update emotion history
+function updateEmotionHistory(emotion) {
+    const timestamp = new Date();
+    
+    // Add to emotion history
+    emotionHistory.push({
+        emotion: emotion,
+        timestamp: timestamp.toISOString()
+    });
+    
+    // Limit history size
+    if (emotionHistory.length > 20) {
+        emotionHistory = emotionHistory.slice(-20);
+    }
+    
+    // Update timeline UI
+    renderEmotionTimeline();
+}
+
+// Render emotion timeline
+function renderEmotionTimeline() {
+    emotionTimeline.innerHTML = '';
+    
+    emotionHistory.forEach(entry => {
+        const timeString = entry.timestamp.toLocaleTimeString();
+        const entryElement = document.createElement('div');
+        entryElement.classList.add('timeline-entry');
+        entryElement.innerHTML = `
+            <span class="time">${timeString}</span>
+            <span class="emotion">${entry.emotion}</span>
+        `;
+        emotionTimeline.appendChild(entryElement);
+    });
+    
+    // Scroll to bottom
+    emotionTimeline.scrollTop = emotionTimeline.scrollHeight;
+}
+
+// Show user guidance
+function showGuidance(message, type = 'info') {
+    // For critical error messages that must be shown as notifications, keep the notification
+    if (type === 'error') {
+        const guidanceElement = document.getElementById('guidance-text');
+        guidanceElement.textContent = message;
+        
+        const userGuidance = document.querySelector('.user-guidance');
+        userGuidance.classList.add('show');
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            userGuidance.classList.remove('show');
+        }, 5000);
+    } else {
+        // For helpful guidance, send to AI assistant instead
+        addAssistantMessage({
+            sender: 'ai',
+            message: message,
+            emotion: currentEmotion,
+            timestamp: new Date().toISOString(),
+            isGuidance: true
+        });
+    }
+}
+
+// Send reaction
+function sendReaction(reaction) {
+    const reactionData = {
+        userName: userName,
+        reaction: reaction,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Send to server
+    socket.emit('peerReaction', reactionData);
+    
+    // Show locally
+    showFloatingReaction(reactionData, true);
+}
+
+// Show floating reaction
+function showFloatingReaction(reactionData, isSelf = false) {
+    const reactionElement = document.createElement('div');
+    reactionElement.classList.add('floating-reaction');
+    reactionElement.textContent = reactionData.reaction;
+    
+    // Position randomly within the camera container
+    const container = document.querySelector('.camera-container');
+    const posX = 40 + Math.random() * (container.offsetWidth - 80);
+    const posY = container.offsetHeight - 60;
+    
+    reactionElement.style.left = `${posX}px`;
+    reactionElement.style.bottom = `${posY}px`;
+    
+    // Add to container
+    container.appendChild(reactionElement);
+    
+    // Remove after animation completes
+    setTimeout(() => {
+        reactionElement.remove();
+    }, 2000);
+}
+
+// Resize canvas to match video dimensions
+function resizeCanvas() {
+    const container = document.querySelector('.camera-container');
+    canvasElement.width = container.offsetWidth;
+    canvasElement.height = container.offsetHeight;
+}
+
+// Helper function to calculate distance between two points
+function calculateDistance(point1, point2) {
+    const dx = point1.x - point2.x;
+    const dy = point1.y - point2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Draw AR effects based on emotion
+function drawEmotionalEffects(landmarks, emotion) {
+    // Get face center point (nose tip)
+    const noseTip = landmarks[1];
+    const centerX = noseTip.x * canvasElement.width;
+    const centerY = noseTip.y * canvasElement.height;
+    
+    // Calculate face width for scaling effects
+    const leftCheek = landmarks[234];
+    const rightCheek = landmarks[454];
+    const faceWidth = Math.abs(
+        leftCheek.x * canvasElement.width - rightCheek.x * canvasElement.width
+    );
+    
+    // Set colors and properties based on emotion
+    let colors, particleCount, swirlingSpeed, particleSize;
+    
+    switch (emotion) {
+        case 'happy':
+            colors = ['#FFD700', '#FFA500', '#FF4500', '#FF6347']; // Gold, orange, red-orange
+            particleCount = 50;
+            swirlingSpeed = 2;
+            particleSize = 4;
+            break;
+        case 'sad':
+            colors = ['#4682B4', '#5F9EA0', '#6495ED', '#87CEEB']; // Blues
+            particleCount = 30;
+            swirlingSpeed = 0.5;
+            particleSize = 3;
+            break;
+        case 'angry':
+            colors = ['#8B0000', '#B22222', '#CD5C5C', '#FF0000']; // Reds
+            particleCount = 60;
+            swirlingSpeed = 3;
+            particleSize = 5;
+            break;
+        case 'surprised':
+            colors = ['#9400D3', '#9932CC', '#BA55D3', '#DA70D6']; // Purples
+            particleCount = 40;
+            swirlingSpeed = 2.5;
+            particleSize = 4;
+            break;
+        case 'sleepy':
+            colors = ['#2E8B57', '#3CB371', '#66CDAA', '#8FBC8F']; // Greens
+            particleCount = 20;
+            swirlingSpeed = 0.3;
+            particleSize = 3;
+            break;
+        default: // neutral
+            colors = ['#A9A9A9', '#C0C0C0', '#D3D3D3', '#DCDCDC']; // Grays
+            particleCount = 30;
+            swirlingSpeed = 1;
+            particleSize = 3;
+    }
+    
+    // Draw swirling particles around the face
+    const time = performance.now() / 1000;
+    const radius = faceWidth * 0.7;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2 + time * swirlingSpeed;
+        const x = centerX + Math.cos(angle) * radius * (0.8 + Math.sin(time + i) * 0.2);
+        const y = centerY + Math.sin(angle) * radius * (0.8 + Math.sin(time + i) * 0.2);
+        
+        const colorIndex = i % colors.length;
+        
+        canvasCtx.fillStyle = colors[colorIndex];
+        canvasCtx.beginPath();
+        canvasCtx.arc(x, y, particleSize * (0.7 + Math.sin(time + i) * 0.3), 0, Math.PI * 2);
+        canvasCtx.fill();
+    }
+    
+    // Add inner glow based on emotion
+    const innerGlowRadius = faceWidth * 0.5;
+    const gradient = canvasCtx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, innerGlowRadius
+    );
+    
+    gradient.addColorStop(0, colors[0] + '80'); // Add 50% transparency
+    gradient.addColorStop(1, 'transparent');
+    
+    canvasCtx.fillStyle = gradient;
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, innerGlowRadius, 0, Math.PI * 2);
+    canvasCtx.fill();
+}
+
+// Start the application when page is loaded
+window.addEventListener('load', init);
+
+// Add a message to the assistant chat UI
+function addAssistantMessage(messageData) {
+    // Create message element
+    const messageEl = document.createElement('div');
+    messageEl.className = `assistant-message ${messageData.sender}`;
+    
+    // Add special classes for journal messages
+    if (messageData.isJournalPrompt) {
+        messageEl.classList.add('journal-prompt');
+    }
+    if (messageData.isJournalPreview) {
+        messageEl.classList.add('journal-preview');
+    }
+    
+    // Format time
+    const timestamp = new Date(messageData.timestamp);
+    const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Add emotion tag if it's an AI message (gives context about emotional state)
+    let emotionTag = '';
+    if (messageData.sender === 'ai' && messageData.emotion) {
+        emotionTag = `<span class="emotion-tag">${capitalize(messageData.emotion)}</span><br>`;
+    }
+    
+    // Set message content
+    messageEl.innerHTML = `
+        ${emotionTag}
+        <div class="message-content">${messageData.message}</div>
+        <div class="time">${formattedTime}</div>
+    `;
+    
+    // Add to chat container
+    assistantMessagesElement.appendChild(messageEl);
+    
+    // Scroll to bottom
+    assistantMessagesElement.scrollTop = assistantMessagesElement.scrollHeight;
+    
+    // Apply special styling for journal messages
+    styleJournalMessages();
+}
+
+// Show a chat message from another user
+function addChatMessage(messageData) {
+    // Create message element with different styling for chat messages from other users
+    const messageEl = document.createElement('div');
+    messageEl.className = 'assistant-message other-user';
+    
+    // Format time
+    const timestamp = new Date(messageData.timestamp);
+    const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Set message content with username
+    messageEl.innerHTML = `
+        <div class="username">${messageData.userName || 'User'}</div>
+        <div class="message-content">${messageData.message}</div>
+        <div class="time">${formattedTime}</div>
+    `;
+    
+    // Add to chat container
+    assistantMessagesElement.appendChild(messageEl);
+    
+    // Scroll to bottom
+    assistantMessagesElement.scrollTop = assistantMessagesElement.scrollHeight;
 }
 
 // Fallback to traditional journal entry without questions
@@ -1127,164 +1684,6 @@ async function createTraditionalJournalEntry() {
             addAssistantMessage({
                 sender: 'ai',
                 message: "I've created a journal entry based on your emotions today. You can view and edit it before saving.",
-                emotion: currentEmotion,
-                timestamp: new Date().toISOString(),
-                isGuidance: true
-            });
-            
-            // Show brief guidance message
-            showGuidance('Journal entry created! You can edit it before saving.', 'info');
-        } else {
-            console.error('Error creating journal entry:', await response.text());
-            showGuidance('Sorry, I had trouble creating your journal entry', 'error');
-        }
-    } catch (error) {
-        console.error('Error creating journal entry:', error);
-        showGuidance('Connection error. Please try again.', 'error');
-    }
-}
-
-// Show journal questions interface
-function showJournalQuestions(questions) {
-    // Create modal if it doesn't exist
-    let questionsModal = document.getElementById('questions-modal');
-    if (!questionsModal) {
-        questionsModal = document.createElement('div');
-        questionsModal.id = 'questions-modal';
-        questionsModal.className = 'modal';
-        
-        // Create modal content
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        
-        // Add close button
-        const closeButton = document.createElement('span');
-        closeButton.className = 'close-modal';
-        closeButton.innerHTML = '&times;';
-        closeButton.addEventListener('click', () => {
-            questionsModal.classList.remove('show');
-        });
-        
-        // Add title
-        const title = document.createElement('h2');
-        title.textContent = 'Journal Reflection Questions';
-        
-        // Create questions container
-        const questionsContainer = document.createElement('div');
-        questionsContainer.id = 'questions-container';
-        questionsContainer.className = 'questions-container';
-        
-        // Add submit button
-        const submitButton = document.createElement('button');
-        submitButton.id = 'submit-answers';
-        submitButton.className = 'journal-button';
-        submitButton.textContent = 'Create Journal Entry';
-        submitButton.addEventListener('click', submitJournalAnswers);
-        
-        // Assemble modal
-        modalContent.appendChild(closeButton);
-        modalContent.appendChild(title);
-        modalContent.appendChild(questionsContainer);
-        modalContent.appendChild(submitButton);
-        questionsModal.appendChild(modalContent);
-        
-        // Add to document
-        document.body.appendChild(questionsModal);
-    }
-    
-    // Clear existing questions
-    const questionsContainer = document.getElementById('questions-container');
-    questionsContainer.innerHTML = '';
-    
-    // Add introduction text
-    const intro = document.createElement('p');
-    intro.className = 'questions-intro';
-    intro.textContent = 'Answer these questions to create a personalized journal entry. Your answers will help me understand your emotional journey today.';
-    questionsContainer.appendChild(intro);
-    
-    // Add each question with a text area
-    questions.forEach((question, index) => {
-        const questionDiv = document.createElement('div');
-        questionDiv.className = 'journal-question';
-        
-        const questionLabel = document.createElement('label');
-        questionLabel.textContent = question;
-        questionLabel.setAttribute('for', `question-${index}`);
-        
-        const answerInput = document.createElement('textarea');
-        answerInput.id = `question-${index}`;
-        answerInput.className = 'journal-answer';
-        answerInput.placeholder = 'Your answer...';
-        answerInput.rows = 3;
-        answerInput.dataset.question = question;
-        
-        questionDiv.appendChild(questionLabel);
-        questionDiv.appendChild(answerInput);
-        questionsContainer.appendChild(questionDiv);
-    });
-    
-    // Show modal
-    questionsModal.classList.add('show');
-}
-
-// Submit journal answers and create entry
-async function submitJournalAnswers() {
-    // Collect answers
-    const answers = {};
-    const answerInputs = document.querySelectorAll('.journal-answer');
-    
-    answerInputs.forEach(input => {
-        if (input.value.trim()) {
-            answers[input.dataset.question] = input.value.trim();
-        }
-    });
-    
-    // Check if we have any answers
-    if (Object.keys(answers).length === 0) {
-        showGuidance('Please answer at least one question to create your journal entry.', 'error');
-        return;
-    }
-    
-    // Hide questions modal
-    document.getElementById('questions-modal').classList.remove('show');
-    
-    // Show processing message
-    showGuidance('Creating your personalized journal entry...', 'info');
-    
-    try {
-        // Get recent emotion history for context
-        const recentHistory = emotionHistory.slice(-10);
-        const dominantEmotions = getDominantEmotions();
-        
-        // Call API for creating a journal entry with answers
-        const response = await fetch('/api/guidance', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                currentEmotion: currentEmotion,
-                emotionHistory: recentHistory,
-                dominantEmotions: dominantEmotions,
-                isJournalEntry: true,
-                userAnswers: answers
-            })
-        });
-        
-        // Handle response
-        if (response.ok) {
-            const data = await response.json();
-            
-            // Create journal entry
-            const entry = createJournalEntry(data.guidance);
-            
-            // Show the journal entry in editable mode
-            showEditableJournalEntry(entry);
-            
-            // Add AI message about the journal entry
-            addAssistantMessage({
-                sender: 'ai',
-                message: "I've created a personalized journal entry based on your reflections. You can edit it before saving.",
                 emotion: currentEmotion,
                 timestamp: new Date().toISOString(),
                 isGuidance: true
@@ -1376,6 +1775,14 @@ function saveEditedJournalEntry(originalEntry, editedContent) {
     
     // Show confirmation
     showGuidance(existingIndex >= 0 ? 'Journal entry updated!' : 'New journal entry saved!', 'success');
+    
+    // If we were in journaling mode, add a confirmation message to the chat
+    addAssistantMessage({
+        sender: 'ai',
+        message: "I've saved your edited journal entry to your history. Your emotional insights help your garden grow!",
+        emotion: currentEmotion,
+        timestamp: new Date().toISOString()
+    });
 }
 
 // Update journal display with recent entries
@@ -1395,6 +1802,36 @@ function updateJournalDisplay() {
             journalEntriesElement.appendChild(entryElement);
         });
     }
+}
+
+// Add special styling to journal messages in the chat
+function styleJournalMessages() {
+    // Add styling to the journal prompts in chat
+    const journalPrompts = document.querySelectorAll('.journal-prompt');
+    journalPrompts.forEach(prompt => {
+        prompt.style.backgroundColor = 'var(--emotion-bg)';
+        prompt.style.borderLeft = '3px solid var(--emotion-color)';
+        prompt.style.padding = '0.5rem 1rem';
+        prompt.style.marginBottom = '0.5rem';
+    });
+    
+    // Add styling to the journal preview in chat
+    const journalPreviews = document.querySelectorAll('.journal-preview');
+    journalPreviews.forEach(preview => {
+        preview.style.backgroundColor = 'rgba(0, 161, 154, 0.05)';
+        preview.style.borderRadius = '8px';
+        preview.style.padding = '1rem';
+        preview.style.marginBottom = '0.5rem';
+        preview.style.fontStyle = 'italic';
+    });
+}
+
+// Setup canvas for capturing frames to send to OpenAI
+function setupCaptureCanvas() {
+    captureCanvas = document.createElement('canvas');
+    captureCanvas.width = 320; // Smaller size for API efficiency
+    captureCanvas.height = 240;
+    captureContext = captureCanvas.getContext('2d');
 }
 
 // Apply color theme based on emotion
@@ -1712,273 +2149,4 @@ function setupDebugControls() {
             thresholdOpenAIIntervalValue.textContent = OPENAI_CALL_INTERVAL.toString();
         });
     }
-}
-
-// Setup canvas for capturing frames to send to OpenAI
-function setupCaptureCanvas() {
-    captureCanvas = document.createElement('canvas');
-    captureCanvas.width = 320; // Smaller size for API efficiency
-    captureCanvas.height = 240;
-    captureContext = captureCanvas.getContext('2d');
-}
-
-// Update emotion history
-function updateEmotionHistory(emotion) {
-    const timestamp = new Date();
-    
-    // Add to emotion history
-    emotionHistory.push({
-        emotion: emotion,
-        timestamp: timestamp.toISOString()
-    });
-    
-    // Limit history size
-    if (emotionHistory.length > 20) {
-        emotionHistory = emotionHistory.slice(-20);
-    }
-    
-    // Update timeline UI
-    renderEmotionTimeline();
-}
-
-// Render emotion timeline
-function renderEmotionTimeline() {
-    emotionTimeline.innerHTML = '';
-    
-    emotionHistory.forEach(entry => {
-        const timeString = entry.timestamp.toLocaleTimeString();
-        const entryElement = document.createElement('div');
-        entryElement.classList.add('timeline-entry');
-        entryElement.innerHTML = `
-            <span class="time">${timeString}</span>
-            <span class="emotion">${entry.emotion}</span>
-        `;
-        emotionTimeline.appendChild(entryElement);
-    });
-    
-    // Scroll to bottom
-    emotionTimeline.scrollTop = emotionTimeline.scrollHeight;
-}
-
-// Show user guidance
-function showGuidance(message, type = 'info') {
-    // For critical error messages that must be shown as notifications, keep the notification
-    if (type === 'error') {
-        const guidanceElement = document.getElementById('guidance-text');
-        guidanceElement.textContent = message;
-        
-        const userGuidance = document.querySelector('.user-guidance');
-        userGuidance.classList.add('show');
-        
-        // Hide after 5 seconds
-        setTimeout(() => {
-            userGuidance.classList.remove('show');
-        }, 5000);
-    } else {
-        // For helpful guidance, send to AI assistant instead
-        addAssistantMessage({
-            sender: 'ai',
-            message: message,
-            emotion: currentEmotion,
-            timestamp: new Date().toISOString(),
-            isGuidance: true
-        });
-    }
-}
-
-// Send reaction
-function sendReaction(reaction) {
-    const reactionData = {
-        userName: userName,
-        reaction: reaction,
-        timestamp: new Date().toISOString()
-    };
-    
-    // Send to server
-    socket.emit('peerReaction', reactionData);
-    
-    // Show locally
-    showFloatingReaction(reactionData, true);
-}
-
-// Show floating reaction
-function showFloatingReaction(reactionData, isSelf = false) {
-    const reactionElement = document.createElement('div');
-    reactionElement.classList.add('floating-reaction');
-    reactionElement.textContent = reactionData.reaction;
-    
-    // Position randomly within the camera container
-    const container = document.querySelector('.camera-container');
-    const posX = 40 + Math.random() * (container.offsetWidth - 80);
-    const posY = container.offsetHeight - 60;
-    
-    reactionElement.style.left = `${posX}px`;
-    reactionElement.style.bottom = `${posY}px`;
-    
-    // Add to container
-    container.appendChild(reactionElement);
-    
-    // Remove after animation completes
-    setTimeout(() => {
-        reactionElement.remove();
-    }, 2000);
-}
-
-// Resize canvas to match video dimensions
-function resizeCanvas() {
-    const container = document.querySelector('.camera-container');
-    canvasElement.width = container.offsetWidth;
-    canvasElement.height = container.offsetHeight;
-}
-
-// Helper function to calculate distance between two points
-function calculateDistance(point1, point2) {
-    const dx = point1.x - point2.x;
-    const dy = point1.y - point2.y;
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-// Draw AR effects based on emotion
-function drawEmotionalEffects(landmarks, emotion) {
-    // Get face center point (nose tip)
-    const noseTip = landmarks[1];
-    const centerX = noseTip.x * canvasElement.width;
-    const centerY = noseTip.y * canvasElement.height;
-    
-    // Calculate face width for scaling effects
-    const leftCheek = landmarks[234];
-    const rightCheek = landmarks[454];
-    const faceWidth = Math.abs(
-        leftCheek.x * canvasElement.width - rightCheek.x * canvasElement.width
-    );
-    
-    // Set colors and properties based on emotion
-    let colors, particleCount, swirlingSpeed, particleSize;
-    
-    switch (emotion) {
-        case 'happy':
-            colors = ['#FFD700', '#FFA500', '#FF4500', '#FF6347']; // Gold, orange, red-orange
-            particleCount = 50;
-            swirlingSpeed = 2;
-            particleSize = 4;
-            break;
-        case 'sad':
-            colors = ['#4682B4', '#5F9EA0', '#6495ED', '#87CEEB']; // Blues
-            particleCount = 30;
-            swirlingSpeed = 0.5;
-            particleSize = 3;
-            break;
-        case 'angry':
-            colors = ['#8B0000', '#B22222', '#CD5C5C', '#FF0000']; // Reds
-            particleCount = 60;
-            swirlingSpeed = 3;
-            particleSize = 5;
-            break;
-        case 'surprised':
-            colors = ['#9400D3', '#9932CC', '#BA55D3', '#DA70D6']; // Purples
-            particleCount = 40;
-            swirlingSpeed = 2.5;
-            particleSize = 4;
-            break;
-        case 'sleepy':
-            colors = ['#2E8B57', '#3CB371', '#66CDAA', '#8FBC8F']; // Greens
-            particleCount = 20;
-            swirlingSpeed = 0.3;
-            particleSize = 3;
-            break;
-        default: // neutral
-            colors = ['#A9A9A9', '#C0C0C0', '#D3D3D3', '#DCDCDC']; // Grays
-            particleCount = 30;
-            swirlingSpeed = 1;
-            particleSize = 3;
-    }
-    
-    // Draw swirling particles around the face
-    const time = performance.now() / 1000;
-    const radius = faceWidth * 0.7;
-    
-    for (let i = 0; i < particleCount; i++) {
-        const angle = (i / particleCount) * Math.PI * 2 + time * swirlingSpeed;
-        const x = centerX + Math.cos(angle) * radius * (0.8 + Math.sin(time + i) * 0.2);
-        const y = centerY + Math.sin(angle) * radius * (0.8 + Math.sin(time + i) * 0.2);
-        
-        const colorIndex = i % colors.length;
-        
-        canvasCtx.fillStyle = colors[colorIndex];
-        canvasCtx.beginPath();
-        canvasCtx.arc(x, y, particleSize * (0.7 + Math.sin(time + i) * 0.3), 0, Math.PI * 2);
-        canvasCtx.fill();
-    }
-    
-    // Add inner glow based on emotion
-    const innerGlowRadius = faceWidth * 0.5;
-    const gradient = canvasCtx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, innerGlowRadius
-    );
-    
-    gradient.addColorStop(0, colors[0] + '80'); // Add 50% transparency
-    gradient.addColorStop(1, 'transparent');
-    
-    canvasCtx.fillStyle = gradient;
-    canvasCtx.beginPath();
-    canvasCtx.arc(centerX, centerY, innerGlowRadius, 0, Math.PI * 2);
-    canvasCtx.fill();
-}
-
-// Start the application when page is loaded
-window.addEventListener('load', init);
-
-// Add a message to the assistant chat UI
-function addAssistantMessage(messageData) {
-    // Create message element
-    const messageEl = document.createElement('div');
-    messageEl.className = `assistant-message ${messageData.sender}`;
-    
-    // Format time
-    const timestamp = new Date(messageData.timestamp);
-    const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    // Add emotion tag if it's an AI message (gives context about emotional state)
-    let emotionTag = '';
-    if (messageData.sender === 'ai' && messageData.emotion) {
-        emotionTag = `<span class="emotion-tag">${capitalize(messageData.emotion)}</span><br>`;
-    }
-    
-    // Set message content
-    messageEl.innerHTML = `
-        ${emotionTag}
-        <div class="message-content">${messageData.message}</div>
-        <div class="time">${formattedTime}</div>
-    `;
-    
-    // Add to chat container
-    assistantMessagesElement.appendChild(messageEl);
-    
-    // Scroll to bottom
-    assistantMessagesElement.scrollTop = assistantMessagesElement.scrollHeight;
-}
-
-// Show a chat message from another user
-function addChatMessage(messageData) {
-    // Create message element with different styling for chat messages from other users
-    const messageEl = document.createElement('div');
-    messageEl.className = 'assistant-message other-user';
-    
-    // Format time
-    const timestamp = new Date(messageData.timestamp);
-    const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    // Set message content with username
-    messageEl.innerHTML = `
-        <div class="username">${messageData.userName || 'User'}</div>
-        <div class="message-content">${messageData.message}</div>
-        <div class="time">${formattedTime}</div>
-    `;
-    
-    // Add to chat container
-    assistantMessagesElement.appendChild(messageEl);
-    
-    // Scroll to bottom
-    assistantMessagesElement.scrollTop = assistantMessagesElement.scrollHeight;
 } 
