@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <style>
+    .wing {
+      fill: #d4a0f7;
+      stroke: #b370de;
+      stroke-width: 1;
+      opacity: 0.8;
+    }
+    .wing-pattern {
+      fill: none;
+      stroke: #b370de;
+      stroke-width: 0.5;
+      opacity: 0.6;
+    }
+    .body {
+      fill: #8a4fc7;
+      stroke: #6c3ba9;
+      stroke-width: 1;
+    }
+    .antenna {
+      fill: none;
+      stroke: #6c3ba9;
+      stroke-width: 1;
+      stroke-linecap: round;
+    }
+  </style>
+  
+  <!-- Wings -->
+  <path class="wing" d="M50,35 C65,25 80,30 85,10 C90,-5 75,15 50,35 Z" />
+  <path class="wing" d="M50,35 C35,25 20,30 15,10 C10,-5 25,15 50,35 Z" />
+  <path class="wing" d="M50,35 C65,45 80,50 85,70 C90,85 75,55 50,35 Z" />
+  <path class="wing" d="M50,35 C35,45 20,50 15,70 C10,85 25,55 50,35 Z" />
+  
+  <!-- Wing Patterns -->
+  <path class="wing-pattern" d="M50,35 C60,30 70,28 75,20" />
+  <path class="wing-pattern" d="M50,35 C40,30 30,28 25,20" />
+  <path class="wing-pattern" d="M50,35 C60,40 70,42 75,50" />
+  <path class="wing-pattern" d="M50,35 C40,40 30,42 25,50" />
+  
+  <!-- Body -->
+  <path class="body" d="M48,20 C50,20 52,20 54,20 C54,25 54,30 54,35 C54,40 54,45 54,50 C54,55 52,60 50,65 C48,60 46,55 46,50 C46,45 46,40 46,35 C46,30 46,25 48,20 Z" />
+  
+  <!-- Antennae -->
+  <path class="antenna" d="M48,22 C45,18 40,15 35,15" />
+  <path class="antenna" d="M52,22 C55,18 60,15 65,15" />
+</svg> 

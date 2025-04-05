@@ -120,6 +120,15 @@ const thresholdOpenAIIntervalValue = document.getElementById('threshold-openai-i
 // Socket.IO connection
 const socket = io();
 
+// Global variables for UI enhancements
+let particlesContainer;
+let ambientElementsContainer;
+let celebrationEffect;
+let themeToggle;
+let isDarkMode = false;
+let particles = [];
+let ambientElements = [];
+
 // Initialize the application
 function init() {
     console.log('Initializing BloomAI application...');
@@ -2234,4 +2243,477 @@ function setupDebugControls() {
             thresholdOpenAIIntervalValue.textContent = OPENAI_CALL_INTERVAL.toString();
         });
     }
-} 
+}
+
+// Function to initialize UI enhancements
+function initUIEnhancements() {
+    console.log('Initializing UI enhancements...');
+    
+    // Initialize containers
+    particlesContainer = document.querySelector('.particles-container');
+    ambientElementsContainer = document.querySelector('.ambient-elements-container');
+    celebrationEffect = document.getElementById('celebration-effect');
+    themeToggle = document.getElementById('theme-toggle');
+    
+    console.log('Theme toggle element:', themeToggle);
+    
+    // Initialize particles
+    // Initialize particles
+    createParticles(15);
+    
+    // Initialize theme toggle
+    if (themeToggle) {
+        console.log('Adding click event listener to theme toggle');
+        themeToggle.addEventListener('click', function() {
+            console.log('Theme toggle clicked, current isDarkMode:', isDarkMode);
+            toggleDarkMode();
+        });
+        
+        // Add keyboard support for accessibility
+        themeToggle.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                console.log('Theme toggle activated via keyboard');
+                toggleDarkMode();
+            }
+        });
+        
+        // Check for saved theme preference
+        const savedTheme = localStorage.getItem('darkMode');
+        console.log('Saved theme preference:', savedTheme);
+        
+        if (savedTheme === 'enabled' || 
+            (savedTheme === null && window.matchMedia && 
+             window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            console.log('Setting dark mode from saved preference or system preference');
+            document.body.classList.add('dark-mode');
+            isDarkMode = true;
+            themeToggle.querySelector('.theme-toggle-handle').style.transform = 'translateX(25px)';
+        }
+    }
+    
+    // Make modals use the visible class instead of show
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        const closeBtn = modal.querySelector('.close-modal, .close-all-entries');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('visible');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
+            });
+        }
+    });
+    
+    // Override the original modal show/hide functions
+    window.openModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.add('visible');
+        }, 10);
+    };
+    
+    window.closeModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('visible');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    };
+}
+
+// Create floating particles
+function createParticles(count) {
+    for (let i = 0; i < count; i++) {
+        const particle = document.createElement('div');
+        particle.classList.add('particle');
+        
+        // Random size between 5 and 15px
+        const size = Math.random() * 10 + 5;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        
+        // Random position
+        const posX = Math.random() * window.innerWidth;
+        const posY = Math.random() * window.innerHeight;
+        particle.style.left = `${posX}px`;
+        particle.style.top = `${posY}px`;
+        
+        // Random animation duration between 15 and 30s
+        const duration = Math.random() * 15 + 15;
+        particle.style.animationDuration = `${duration}s`;
+        
+        // Random animation delay
+        particle.style.animationDelay = `${Math.random() * 10}s`;
+        
+        // Random X distance
+        const distance = Math.random() * 100 - 50;
+        particle.style.animationName = 'float-particle';
+        particle.style.transform = `translateX(${distance}px)`;
+        
+        particlesContainer.appendChild(particle);
+        particles.push(particle);
+    }
+}
+
+// Toggle dark mode
+function toggleDarkMode() {
+    console.log('Toggle dark mode called! Current state:', isDarkMode);
+    
+    // Toggle the state
+    isDarkMode = !isDarkMode;
+    
+    // Apply the class to the body
+    document.body.classList.toggle('dark-mode');
+    
+    // Update the toggle button appearance
+    const handle = themeToggle.querySelector('.theme-toggle-handle');
+    if (handle) {
+        handle.style.transform = isDarkMode ? 'translateX(25px)' : 'translateX(0)';
+    }
+    
+    // Save preference to localStorage
+    localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
+    console.log('Dark mode toggled to:', isDarkMode);
+}
+
+// Update dynamic background based on emotion
+function updateEmotionBackground(emotion) {
+    // Remove all existing emotion classes
+    document.body.classList.remove(
+        'emotion-happy', 
+        'emotion-sad', 
+        'emotion-angry', 
+        'emotion-surprised', 
+        'emotion-disgusted', 
+        'emotion-sleepy'
+    );
+    
+    // Add new class if emotion is detected
+    if (emotion && emotion !== 'neutral') {
+        document.body.classList.add(`emotion-${emotion}`);
+    }
+    
+    // Update emotion indicator
+    const emotionText = document.querySelector('.emotion-text');
+    if (emotionText) {
+        emotionText.classList.remove(
+            'happy', 'sad', 'angry', 'surprised', 'disgusted', 'sleepy', 'neutral'
+        );
+        emotionText.classList.add(emotion || 'neutral');
+    }
+    
+    // Add camera highlight effect
+    const cameraContainer = document.querySelector('.camera-container');
+    if (cameraContainer) {
+        if (emotion && emotion !== 'neutral' && emotion !== 'detecting') {
+            cameraContainer.classList.add('emotion-detected');
+        } else {
+            cameraContainer.classList.remove('emotion-detected');
+        }
+    }
+}
+
+// Create ambient elements like butterflies and bees
+function createAmbientElements(streakCount) {
+    // Clear existing ambient elements
+    ambientElementsContainer.innerHTML = '';
+    ambientElements = [];
+    
+    // Add elements based on streak count
+    const elementCount = Math.min(Math.floor(streakCount / 2), 5);
+    
+    for (let i = 0; i < elementCount; i++) {
+        const type = Math.random() > 0.5 ? 'butterfly' : 'bee';
+        const element = document.createElement('div');
+        element.classList.add('ambient-element', type);
+        
+        // Random position
+        const posX = Math.random() * window.innerWidth * 0.8;
+        const posY = Math.random() * window.innerHeight * 0.7 + 100;
+        element.style.left = `${posX}px`;
+        element.style.top = `${posY}px`;
+        
+        // Random animation duration
+        const duration = Math.random() * 10 + 15;
+        element.style.animationDuration = `${duration}s`;
+        
+        // Random animation delay
+        const delay = Math.random() * 5;
+        element.style.animationDelay = `${delay}s`;
+        
+        ambientElementsContainer.appendChild(element);
+        ambientElements.push(element);
+        
+        // Fade in
+        setTimeout(() => {
+            element.style.opacity = '0.8';
+        }, delay * 1000);
+    }
+}
+
+// Create celebration effect when completing a streak milestone
+function createCelebrationEffect() {
+    celebrationEffect.innerHTML = '';
+    celebrationEffect.classList.add('active');
+    
+    // Create confetti
+    for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.classList.add('confetti');
+        
+        // Random size
+        const size = Math.random() * 10 + 5;
+        confetti.style.width = `${size}px`;
+        confetti.style.height = `${size}px`;
+        
+        // Random position
+        const posX = Math.random() * window.innerWidth;
+        confetti.style.left = `${posX}px`;
+        
+        // Random color
+        const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.backgroundColor = color;
+        
+        // Random animation duration
+        const duration = Math.random() * 2 + 2;
+        confetti.style.animationDuration = `${duration}s`;
+        
+        // Random rotation
+        const rotation = Math.random() * 360;
+        confetti.style.transform = `rotate(${rotation}deg)`;
+        
+        celebrationEffect.appendChild(confetti);
+    }
+    
+    // Remove celebration effect after animation
+    setTimeout(() => {
+        celebrationEffect.classList.remove('active');
+    }, 4000);
+}
+
+// Enhance the markDayComplete function to use new visual enhancements
+const originalMarkDayComplete = window.markDayComplete;
+window.markDayComplete = function(day) {
+    // Call the original function
+    originalMarkDayComplete(day);
+    
+    // Get current streak count
+    const streakCount = parseInt(document.getElementById('current-streak').innerText);
+    
+    // Create ambient elements based on streak count
+    createAmbientElements(streakCount);
+    
+    // If streak is a milestone (3, 5, 7), show celebration effect
+    if (streakCount === 3 || streakCount === 5 || streakCount === 7) {
+        createCelebrationEffect();
+    }
+    
+    // Add current day highlight
+    highlightCurrentDay();
+};
+
+// Highlight the current day in the streak display
+function highlightCurrentDay() {
+    // Remove current-day class from all days
+    document.querySelectorAll('.flower-day').forEach(day => {
+        day.classList.remove('current-day');
+    });
+    
+    // Add current-day class to today
+    const today = new Date().getDay();
+    const currentDayElement = document.querySelector(`.flower-day[data-day="${today}"]`);
+    if (currentDayElement) {
+        currentDayElement.classList.add('current-day');
+    }
+}
+
+// Override the updateEmotionDisplay function to use our enhancements
+const originalUpdateEmotionDisplay = window.updateEmotionDisplay;
+window.updateEmotionDisplay = function(emotion) {
+    // Call the original function
+    originalUpdateEmotionDisplay(emotion);
+    
+    // Update dynamic background
+    updateEmotionBackground(emotion);
+};
+
+// Override the sendJournalToServer function to show skeleton loading
+const originalSendJournalToServer = window.sendJournalToServer;
+window.sendJournalToServer = function(entry) {
+    // Add skeleton loading
+    const entriesContainer = document.getElementById('journal-entries');
+    if (entriesContainer) {
+        const skeleton = document.createElement('div');
+        skeleton.classList.add('journal-entry', 'skeleton-loader');
+        skeleton.style.height = '80px';
+        skeleton.id = 'skeleton-entry';
+        entriesContainer.prepend(skeleton);
+    }
+    
+    // Call the original function
+    originalSendJournalToServer(entry);
+    
+    // Remove skeleton after a delay
+    setTimeout(() => {
+        const skeleton = document.getElementById('skeleton-entry');
+        if (skeleton) {
+            skeleton.remove();
+        }
+    }, 2000);
+};
+
+// Override the addJournalEntry function to add emotion color coding
+const originalAddJournalEntry = window.addJournalEntry;
+window.addJournalEntry = function(entry) {
+    // Call the original function
+    originalAddJournalEntry(entry);
+    
+    // Add emotion class to the entry
+    const entryElement = document.querySelector('.journal-entry:first-child');
+    if (entryElement && entry.emotion) {
+        entryElement.classList.add(entry.emotion);
+    }
+};
+
+// Add tooltips to buttons
+function addTooltips() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        if (!button.title && !button.classList.contains('tooltip')) {
+            const tooltipText = button.innerText;
+            button.classList.add('tooltip');
+            
+            const tooltip = document.createElement('span');
+            tooltip.classList.add('tooltip-text');
+            tooltip.innerText = tooltipText;
+            
+            button.appendChild(tooltip);
+        }
+    });
+}
+
+// Initialize tooltips when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Highlight today in the streak display
+    highlightCurrentDay();
+    
+    // Add tooltips to buttons
+    addTooltips();
+});
+
+// ... existing code ...
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM content loaded, initializing Bloom application...');
+    
+    // Initialize the camera
+    initializeCamera();
+    
+    // Add event listeners
+    setupEventListeners();
+    
+    // Load stored data
+    loadStoredData();
+    
+    // Initialize UI enhancements
+    initUIEnhancements();
+    
+    // Highlight today in the streak display
+    highlightCurrentDay();
+    
+    // Add tooltips to buttons
+    addTooltips();
+    
+    // Direct setup of dark mode toggle (ensuring it works)
+    const themeToggleEl = document.getElementById('theme-toggle');
+    if (themeToggleEl) {
+        console.log('Setting up dark mode toggle directly');
+        
+        // Add click event
+        themeToggleEl.addEventListener('click', function() {
+            console.log('Dark mode toggle clicked directly');
+            // Toggle dark mode
+            const isDarkModeActive = document.body.classList.contains('dark-mode');
+            document.body.classList.toggle('dark-mode');
+            
+            // Move toggle handle
+            const handle = themeToggleEl.querySelector('.theme-toggle-handle');
+            if (handle) {
+                handle.style.transform = isDarkModeActive ? 'translateX(0)' : 'translateX(25px)';
+            }
+            
+            // Save preference
+            localStorage.setItem('darkMode', isDarkModeActive ? 'disabled' : 'enabled');
+            
+            // Update text
+            const toggleText = themeToggleEl.querySelector('.theme-toggle-text');
+            if (toggleText) {
+                toggleText.style.opacity = isDarkModeActive ? '1' : '0';
+            }
+        });
+        
+        // Add keyboard support
+        themeToggleEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                themeToggleEl.click();
+            }
+        });
+        
+        // Check for saved preference
+        const savedTheme = localStorage.getItem('darkMode');
+        if (savedTheme === 'enabled') {
+            document.body.classList.add('dark-mode');
+            const handle = themeToggleEl.querySelector('.theme-toggle-handle');
+            if (handle) {
+                handle.style.transform = 'translateX(25px)';
+            }
+        }
+    } else {
+        console.error('Theme toggle element not found in DOM');
+    }
+});
+
+// ... existing code ...
+
+// Initialize theme toggle directly in a self-executing function for immediate execution
+(function() {
+    // Get the theme toggle button
+    const themeToggleBtn = document.getElementById('theme-toggle-button');
+    
+    if (themeToggleBtn) {
+        console.log('Found theme toggle button:', themeToggleBtn);
+        
+        // Load saved preference
+        const savedTheme = localStorage.getItem('darkMode');
+        console.log('Saved theme preference:', savedTheme);
+        
+        // Apply dark mode if saved or if user prefers dark color scheme
+        if (savedTheme === 'enabled' || 
+            (savedTheme === null && window.matchMedia && 
+             window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.body.classList.add('dark-mode');
+            console.log('Dark mode enabled on page load');
+        }
+        
+        // Add click event listener
+        themeToggleBtn.addEventListener('click', function() {
+            console.log('Theme toggle button clicked');
+            
+            // Toggle dark mode class on body
+            document.body.classList.toggle('dark-mode');
+            
+            // Save preference
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
+            
+            console.log('Dark mode toggled to:', isDarkMode);
+        });
+    } else {
+        console.error('Theme toggle button not found');
+    }
+})();
