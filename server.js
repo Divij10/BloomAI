@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const OpenAI = require('openai');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,9 +14,54 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "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", // Fallback to hard-coded key if env var is missing
 });
 
+// Create an index.html file in the public directory that redirects to welcome.html
+const indexRedirectHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0;url=/welcome">
+    <title>Redirecting to Welcome Page</title>
+    <script>
+        window.location.href = "/welcome";
+    </script>
+</head>
+<body>
+    <p>Redirecting to welcome page... <a href="/welcome">Click here</a> if you are not redirected automatically.</p>
+</body>
+</html>
+`;
+
+// Write the redirect file to the public directory
+fs.writeFileSync(path.join(__dirname, 'public', 'redirect-index.html'), indexRedirectHTML);
+
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// Route for the main app
+app.get('/app', (req, res) => {
+  console.log('Serving main app at /app');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Default route should serve welcome.html
+app.get('/', (req, res) => {
+  console.log('Serving redirect page at /');
+  res.sendFile(path.join(__dirname, 'public', 'redirect-index.html'));
+});
+
+// Explicit welcome page route for testing
+app.get('/welcome', (req, res) => {
+  console.log('Serving welcome page at /welcome');
+  res.sendFile(path.join(__dirname, 'public', 'welcome.html'));
+});
 
 // Basic API endpoint for emotions
 app.post('/api/emotions', (req, res) => {

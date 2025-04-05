@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Bloom</title>
+    <link rel="icon" href="assets/bloom-logo.png" type="image/png">
+    <link rel="stylesheet" href="welcome-styles.css">
+    <script>
+        // Simple script to verify the welcome page is loading
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Welcome page loaded successfully!');
+            document.querySelector('.welcome-container').style.opacity = '1';
+        });
+    </script>
+</head>
+<body>
+    <!-- Floating particles -->
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    
+    <div class="welcome-container">
+        <div class="logo-container">
+            <img src="assets/bloom-logo.png" alt="Bloom Logo" class="bloom-logo">
+        </div>
+        <p class="tagline">Journal your emotions and watch your garden grow</p>
+        <a href="/app" class="discover-button">Discover More</a>
+    </div>
+</body>
+</html> 
