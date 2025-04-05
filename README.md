@@ -5,7 +5,6 @@ BloomAI is an interactive AR Emotional Mirror web application that uses facial r
 ## Features
 
 - **Real-time Emotion Detection**: Detects emotions such as happy, sad, angry, surprised, sleepy, and neutral using facial landmarks
-- **AR Visualization**: Displays beautiful AR effects that change based on detected emotions
 - **Emotional Journaling**: Creates AI-assisted journal entries based on your emotional states
 - **Daily Streaks**: Track your emotional well-being with a visual garden that blooms as you check in daily
 - **AI Assistant**: Chat with an emotionally-aware AI assistant that responds contextually based on your current emotional state
