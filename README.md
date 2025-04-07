@@ -30,39 +30,92 @@ BloomAI is an interactive AR Emotional Mirror web application that uses facial r
 - Express.js for the backend server
 - Local Storage for persisting user data between sessions
 
+## System Requirements
+
+- **Node.js**: Version 14.x or higher (latest LTS version recommended)
+- **Browser**: Chrome (recommended), Firefox, or Edge with WebRTC support
+- **Camera**: Functional webcam for emotion detection
+- **OpenAI API Key**: Valid API key with access to GPT-4 Vision
+
 ## Setup Instructions
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/Divij10/BloomAI.git
    cd BloomAI
    ```
 
 2. Install dependencies:
-   ```
+   ```bash
    npm install
    ```
 
 3. Set up your OpenAI API key:
+   
    Create a `.env` file in the root directory:
    ```
    OPENAI_API_KEY=your_api_key_here
    ```
+   
+   To get an OpenAI API key:
+   - Sign up/Login at [OpenAI](https://platform.openai.com/signup)
+   - Navigate to the API section
+   - Create a new API key in your account settings
+   - Copy the key to your `.env` file
 
 4. Start the server:
-   ```
+   
+   Using Node directly:
+   ```bash
    node server.js
    ```
    
-   Or use the provided script:
-   ```
+   Using the provided script (recommended):
+   ```bash
+   chmod +x start-server.sh  # Make the script executable (first time only)
    ./start-server.sh
    ```
+   
+   The terminal will display "Server is running on port 3000" when successful.
 
-5. Open your browser and navigate to:
+5. Access the application:
+   
+   Open your browser and navigate to:
    ```
    http://localhost:3000
    ```
+   
+   You'll first see the welcome page. Click "Get Started" to access the main application.
+
+6. Camera permissions:
+   
+   When prompted, allow the application to access your camera. This is required for the emotion detection feature to work.
+
+## Using the Application
+
+1. **Welcome Page**: Click "Get Started" to enter the main application
+2. **Emotion Detection**: Position your face in the center of the screen
+3. **Journaling**: Use the journal section to record your emotions and thoughts
+4. **Meditation**: Click the "Meditate" button for a breathing exercise
+5. **Chat Assistant**: Use the Bloom Assistant for guidance and conversation
+6. **Weekly Progress**: Check your Weekly Bloom to see your progress
+
+## Troubleshooting
+
+- **Camera not working**: Ensure your browser has permission to access the camera and no other application is using it
+- **Emotion detection issues**: Make sure your face is well-lit and positioned in the center of the frame
+- **Server won't start**: Check that port 3000 is not in use by another application
+- **OpenAI API errors**: Verify your API key is correct and has sufficient quota
+- **Application not loading**: Clear browser cache and restart the server
+
+To restart the server if needed:
+```bash
+# Kill any running instance
+pkill -f 'node server.js'
+
+# Start the server again
+./start-server.sh
+```
 
 ## Recent Updates
 
